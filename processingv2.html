@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Book Processing Dashboard v2.0 (Priority)</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+<style>
+  :root{
+    --paper: 80mm;
+    --border:#ddd;
+    --bg:#fafafa;
+    --muted:#666;
+  }
+
+  body{
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 18px;
+    color:#111;
+  }
+
+  .app{
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap:16px;
+    align-items:start;
+  }
+
+  .panel{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  }
+
+  h1{font-size:18px;margin:0 0 10px;}
+  h2{font-size:14px;margin:10px 0;color:#222;}
+  h3{font-size:13px;margin:12px 0 8px;color:#222;}
+
+  .row{
+    display:grid;
+    grid-template-columns: 150px 1fr;
+    gap:10px;
+    margin-bottom:10px;
+    align-items:center;
+  }
+
+  input[type="text"], input[type="number"], select{
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:14px;
+    width:100%;
+    box-sizing:border-box;
+    background:#fff;
+  }
+
+  .mono{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+
+  .btnRow{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+    margin-top:10px;
+  }
+
+  button{
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#111;
+    color:#fff;
+    font-weight:750;
+    cursor:pointer;
+  }
+  button.secondary{
+    background:#fff;
+    color:#111;
+    font-weight:700;
+  }
+  button.danger{
+    background:#b00020;
+    border-color:#b00020;
+  }
+  button:active{transform: translateY(1px);}
+
+  .hint{
+    color: var(--muted);
+    font-size:12px;
+    line-height:1.35;
+    margin-top:8px;
+  }
+
+  .filters{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:10px;
+    margin: 8px 0 10px;
+  }
+
+  /* Table */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+    margin-top:10px;
+  }
+  th, td{
+    border-bottom:1px solid #eee;
+    padding:8px 6px;
+    vertical-align:top;
+  }
+  th{ text-align:left; font-size:12px; color:#333; }
+  tr:hover td{ background:#fafafa; }
+
+  .pill{
+    display:inline-block;
+    padding:3px 8px;
+    border-radius:999px;
+    border:1px solid #ddd;
+    font-size:12px;
+    font-weight:800;
+    background:#fff;
+    white-space:nowrap;
+  }
+  .pill.yes{ border-color:#0b6; color:#0b6; }
+  .pill.no{ border-color:#999; color:#333; }
+  .pill.special{ border-color:#b00020; color:#b00020; }
+  .pill.done{ border-color:#0b6; color:#0b6; }
+  .pill.warn{ border-color:#b8860b; color:#7a5a00; }
+
+  .actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .smallBtn{
+    padding:6px 10px;
+    border-radius:10px;
+    font-size:12px;
+  }
+
+  .hidden{ display:none !important; }
+
+  /* ===== Aging heat (subtle ramp) ===== */
+  .age0 td{ background:#fff; }
+  .age1 td{ background:#fffdf6; }
+  .age2 td{ background:#fff9e8; }
+  .age3 td{ background:#fff3d5; }
+  .age4 td{ background:#ffe8ba; }
+
+  /* ===== Receipt styles ===== */
+  .receiptWrap{
+    display:grid;
+    justify-content:center;
+  }
+
+  .receipt{
+    width: var(--paper);
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    box-sizing:border-box;
+
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
+
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+  }
+
+  .r-title{
+    text-align:center;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing: .4px;
+    margin: 2px 0 6px;
+  }
+
+  .r-special{
+    text-align:center;
+    font-size:16px;
+    font-weight:900;
+    margin: 2px 0 6px;
+  }
+
+  .r-rule{
+    border-top:1px dashed #000;
+    margin:6px 0;
+  }
+
+  .r-line{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    margin: 2px 0;
+  }
+
+  .r-left{ flex:1; overflow-wrap:anywhere; }
+  .r-right{ white-space:nowrap; font-weight:900; }
+
+  .r-block{
+    margin-top:6px;
+    font-weight:900;
+  }
+
+  .r-sub{
+    font-weight:700;
+  }
+
+  @media print{
+    body{ margin:0; background:#fff; }
+    .panel:not(.printpanel){ display:none !important; }
+    .printpanel h2{ display:none !important; }
+    .receipt{
+      border:none;
+      border-radius:0;
+      padding:0;
+    }
+    @page{ size:80mm auto; margin:4mm; }
+  }
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- LEFT -->
+  <div class="panel">
+    <h1>Book Processing Dashboard v2.0</h1>
+
+    <h2>Scan / Find</h2>
+    <div class="row">
+      <label for="scan">Scan barcode</label>
+      <input id="scan" class="mono" type="text" placeholder="Scan here (Enter loads/creates)" />
+    </div>
+
+    <div class="row">
+      <label for="search">Search</label>
+      <input id="search" type="text" placeholder="Title or barcode…" />
+    </div>
+
+    <div class="filters">
+      <div>
+        <label for="filterSpecial" style="font-size:13px;">Special handling</label>
+        <select id="filterSpecial">
+          <option value="">All</option>
+          <option value="1">Special only</option>
+          <option value="0">Not special</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="showDone" style="font-size:13px;">Done items</label>
+        <select id="showDone">
+          <option value="0">Hide done</option>
+          <option value="1">Show done</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="viewMode" style="font-size:13px;">View</label>
+        <select id="viewMode">
+          <option value="all">All</option>
+          <option value="top10">Top 10 priority</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hint">
+      Priority score is automatic. Aging points only apply when <strong>Received=YES</strong> and the item is not Done.
+    </div>
+
+    <h2>Item editor</h2>
+
+    <div class="row">
+      <label for="barcode">Barcode</label>
+      <input id="barcode" class="mono" type="text" placeholder="ISBN placeholder or real barcode" />
+    </div>
+
+    <div class="row">
+      <label for="title">Title</label>
+      <input id="title" type="text" placeholder="Title / Author" />
+    </div>
+
+    <div class="row">
+      <label for="received">Received</label>
+      <select id="received">
+        <option>NO</option>
+        <option>YES</option>
+      </select>
+    </div>
+
+    <h3>Processing Status (YES/NO)</h3>
+
+    <div class="row">
+      <label for="cataloged">Cataloged</label>
+      <select id="cataloged"><option>NO</option><option>YES</option></select>
+    </div>
+
+    <div class="row">
+      <label for="spine">Spine label</label>
+      <select id="spine"><option>NO</option><option>YES</option></select>
+    </div>
+
+    <div class="row">
+      <label for="covered">Covered</label>
+      <select id="covered"><option>NO</option><option>YES</option></select>
+    </div>
+
+    <h3>Context</h3>
+
+    <div class="row">
+      <label for="holdName">Hold for</label>
+      <input id="holdName" type="text" placeholder="Name (blank = no hold)" />
+    </div>
+
+    <div class="row">
+      <label for="adoptedAmt">Adopted $</label>
+      <input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" />
+    </div>
+
+    <div class="row">
+      <label for="bookplate">Bookplate printed</label>
+      <select id="bookplate"><option>NO</option><option>YES</option></select>
+    </div>
+
+    <div class="row">
+      <label for="donated">Donated</label>
+      <select id="donated"><option>NO</option><option>YES</option></select>
+    </div>
+
+    <h3>Slip tracking</h3>
+
+    <div class="row">
+      <label for="slipPrinted">Slip printed</label>
+      <input id="slipPrinted" type="text" disabled />
+    </div>
+
+    <div class="row">
+      <label for="printedAt">Printed for</label>
+      <input id="printedAt" type="text" disabled />
+    </div>
+
+    <div class="btnRow">
+      <button onclick="printSlip()">Print slip</button>
+      <button class="secondary" onclick="saveItem()">Save item</button>
+    </div>
+
+    <div class="btnRow">
+      <button class="secondary" onclick="clearEditor()">Clear</button>
+      <button class="danger" onclick="deleteItem()">Delete</button>
+    </div>
+
+    <h2>Items</h2>
+    <div id="summary" class="hint"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Priority</th>
+          <th>Done</th>
+          <th>Title</th>
+          <th>Barcode</th>
+          <th>Flags</th>
+          <th>Slip</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="itemsTable"></tbody>
+    </table>
+  </div>
+
+  <!-- RIGHT: receipt -->
+  <div class="panel printpanel">
+    <h2>Slip Preview</h2>
+    <div class="receiptWrap">
+      <div class="receipt" id="receipt">
+        <div id="rSpecialTop" class="r-special hidden">⚠ SPECIAL HANDLING</div>
+
+        <div class="r-title">PROCESSING STATUS</div>
+        <div class="r-rule"></div>
+
+        <div id="rTitleBlock" class="r-block hidden"></div>
+
+        <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right" id="rReceived"></div></div>
+        <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right" id="rCataloged"></div></div>
+        <div class="r-line"><div class="r-left r-sub">Spine label</div><div class="r-right" id="rSpine"></div></div>
+        <div class="r-line"><div class="r-left r-sub">Covered</div><div class="r-right" id="rCovered"></div></div>
+
+        <div class="r-rule"></div>
+
+        <div id="rHoldRow" class="r-line hidden">
+          <div class="r-left r-sub">HOLD</div><div class="r-right" id="rHoldName"></div>
+        </div>
+
+        <div id="rAdoptedRow" class="r-line hidden">
+          <div class="r-left r-sub">ADOPTED</div><div class="r-right" id="rAdoptedAmt"></div>
+        </div>
+
+        <div id="rBookplateRow" class="r-line hidden">
+          <div class="r-left r-sub">BOOKPLATE</div><div class="r-right" id="rBookplate"></div>
+        </div>
+
+        <div id="rDonatedRow" class="r-line hidden">
+          <div class="r-left r-sub">DONATED</div><div class="r-right">YES</div>
+        </div>
+
+        <div class="r-rule"></div>
+
+        <svg id="barcodeSvg"></svg>
+        <div class="r-line">
+          <div class="r-left r-sub">Barcode</div>
+          <div class="r-right" id="rBarcodeText"></div>
+        </div>
+
+        <div class="r-rule"></div>
+
+        <div class="r-line">
+          <div class="r-left r-sub">Printed for</div>
+          <div class="r-right" id="rPrintedAt"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  const STORAGE_KEY = "bp_v2_priority";
+  const defaultData = { items: [] };
+  let data = loadData();
+  let activeId = null;
+
+  function loadData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return structuredClone(defaultData);
+      const parsed = JSON.parse(raw);
+      parsed.items ??= [];
+      return parsed;
+    }catch{
+      return structuredClone(defaultData);
+    }
+  }
+
+  function persist(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    renderTable();
+    syncReceipt();
+  }
+
+  function uid(){
+    return "item_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
+  }
+
+  function isDone(it){
+    return (it.received === "YES" &&
+            it.cataloged === "YES" &&
+            it.spine === "YES" &&
+            it.covered === "YES");
+  }
+
+  function hasHold(it){
+    return (it.holdName || "").trim().length > 0;
+  }
+
+  function hasAdopted(it){
+    const n = Number(it.adoptedAmt);
+    return isFinite(n) && n > 0;
+  }
+
+  function isSpecial(it){
+    // Special-handling triggers: hold OR adopted OR donated
+    return hasHold(it) || hasAdopted(it) || it.donated === "YES";
+  }
+
+  function formatMoney(v){
+    const n = Number(v);
+    if(!isFinite(n) || n <= 0) return "";
+    return "$" + n.toFixed(2);
+  }
+
+  function nowStamp(){
+    const d = new Date();
+    return d.toLocaleString([], { year:"numeric", month:"numeric", day:"numeric", hour:"numeric", minute:"2-digit" });
+  }
+
+  function escapeHTML(str){
+    return String(str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function statusSignature(it){
+    // What should reset “aging”:
+    // processing statuses + received + bookplate printed (since adopted workflow is real work)
+    return [
+      it.received, it.cataloged, it.spine, it.covered,
+      it.bookplate
+    ].join("|");
+  }
+
+  function daysSince(isoDate){
+    if(!isoDate) return 0;
+    const then = new Date(isoDate).getTime();
+    if(!isFinite(then)) return 0;
+    const now = Date.now();
+    const ms = now - then;
+    return Math.max(0, Math.floor(ms / (1000*60*60*24)));
+  }
+
+  function priorityScore(it){
+    // Importance + staleness.
+    // Only apply staleness when Received=YES and not done.
+    let score = 0;
+    const breakdown = [];
+
+    if(hasHold(it)){ score += 60; breakdown.push("hold+60"); }
+    if(hasAdopted(it)){ score += 35; breakdown.push("adopted+35"); }
+
+    // Bookplate avoidance helper: if adopted and bookplate NOT printed, add pressure.
+    if(hasAdopted(it) && (it.bookplate || "NO") === "NO"){
+      score += 20; breakdown.push("bookplate+20");
+    }
+
+    // If received and still not cataloged, nudge upward because it blocks everything.
+    if(it.received === "YES" && it.cataloged === "NO"){
+      score += 20; breakdown.push("notCataloged+20");
+    }
+
+    // Donation (small)
+    if(it.donated === "YES"){
+      score += 10; breakdown.push("donated+10");
+    }
+
+    // Aging ramp
+    if(it.received === "YES" && !isDone(it)){
+      const d = daysSince(it.statusChangedAt);
+      const daily = Math.min(40, d * 2); // +2 per day, cap 40
+      if(daily > 0){ score += daily; breakdown.push(`age+${daily}`); }
+      if(d >= 7){ score += 15; breakdown.push("7d+15"); }
+      if(d >= 14){ score += 30; breakdown.push("14d+30"); }
+    }
+
+    return { score, breakdown };
+  }
+
+  function ageClass(it){
+    // Visual ramp (only when received YES and not done)
+    if(it.received !== "YES" || isDone(it)) return "age0";
+    const d = daysSince(it.statusChangedAt);
+    if(d >= 14) return "age4";
+    if(d >= 10) return "age3";
+    if(d >= 7) return "age2";
+    if(d >= 3) return "age1";
+    return "age0";
+  }
+
+  // ----------------------------
+  // Editor
+  // ----------------------------
+  function getEditorItem(){
+    return {
+      id: activeId || uid(),
+      barcode: $("barcode").value.trim(),
+      title: $("title").value.trim(),
+
+      received: $("received").value,
+      cataloged: $("cataloged").value,
+      spine: $("spine").value,
+      covered: $("covered").value,
+
+      holdName: $("holdName").value.trim(),
+      adoptedAmt: $("adoptedAmt").value,
+      bookplate: $("bookplate").value,
+      donated: $("donated").value,
+
+      slipPrinted: ($("slipPrinted").value || "NO"),
+      printedAt: ($("printedAt").value || ""),
+
+      statusChangedAt: null,    // set on save
+      statusSig: null,          // set on save
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function loadIntoEditor(it){
+    activeId = it.id;
+
+    $("barcode").value = it.barcode || "";
+    $("title").value = it.title || "";
+
+    $("received").value = it.received || "NO";
+    $("cataloged").value = it.cataloged || "NO";
+    $("spine").value = it.spine || "NO";
+    $("covered").value = it.covered || "NO";
+
+    $("holdName").value = it.holdName || "";
+    $("adoptedAmt").value = it.adoptedAmt ?? "";
+    $("bookplate").value = it.bookplate || "NO";
+    $("donated").value = it.donated || "NO";
+
+    $("slipPrinted").value = it.slipPrinted || "NO";
+    $("printedAt").value = it.printedAt || "";
+
+    syncReceipt();
+  }
+
+  function clearEditor(){
+    activeId = null;
+    $("barcode").value = "";
+    $("title").value = "";
+
+    $("received").value = "NO";
+    $("cataloged").value = "NO";
+    $("spine").value = "NO";
+    $("covered").value = "NO";
+
+    $("holdName").value = "";
+    $("adoptedAmt").value = "";
+    $("bookplate").value = "NO";
+    $("donated").value = "NO";
+
+    $("slipPrinted").value = "NO";
+    $("printedAt").value = "";
+
+    syncReceipt();
+    $("scan").focus();
+  }
+
+  function saveItem(){
+    const it = getEditorItem();
+    if(!it.barcode){
+      alert("Barcode is required (scan or type it).");
+      $("barcode").focus();
+      return;
+    }
+
+    // Merge with existing item if any
+    const idx = data.items.findIndex(x => x.id === it.id);
+    let prev = null;
+    if(idx >= 0) prev = data.items[idx];
+    else{
+      const byBarcode = data.items.findIndex(x => (x.barcode||"").trim() === it.barcode);
+      if(byBarcode >= 0){
+        prev = data.items[byBarcode];
+        it.id = prev.id;
+        activeId = it.id;
+      }
+    }
+
+    // Determine statusChangedAt (only if processing status signature changes)
+    const newSig = statusSignature(it);
+    const prevSig = prev?.statusSig ?? statusSignature(prev || it);
+
+    if(!prev){
+      it.statusSig = newSig;
+      it.statusChangedAt = new Date().toISOString();
+    }else{
+      it.statusSig = newSig;
+      it.statusChangedAt = (newSig !== prevSig) ? new Date().toISOString() : (prev.statusChangedAt || prev.updatedAt || new Date().toISOString());
+      // keep slipPrinted/printedAt if not changed in editor (already there)
+    }
+
+    it.updatedAt = new Date().toISOString();
+
+    // Upsert
+    const finalIdx = data.items.findIndex(x => x.id === it.id);
+    if(finalIdx >= 0) data.items[finalIdx] = it;
+    else data.items.push(it);
+
+    persist();
+  }
+
+  function deleteItem(){
+    if(!activeId){
+      alert("No item loaded.");
+      return;
+    }
+    if(!confirm("Delete this item?")) return;
+    data.items = data.items.filter(x => x.id !== activeId);
+    clearEditor();
+    persist();
+  }
+
+  // ----------------------------
+  // Printing
+  // ----------------------------
+  function printSlip(){
+    $("slipPrinted").value = "YES";
+    $("printedAt").value = nowStamp();
+    saveItem();
+    syncReceipt();
+    window.print();
+  }
+
+  // ----------------------------
+  // Slip render
+  // ----------------------------
+  function syncReceipt(){
+    const it = getEditorItem();
+
+    $("rSpecialTop").classList.toggle("hidden", !isSpecial(it));
+
+    const t = (it.title || "").trim();
+    $("rTitleBlock").textContent = t;
+    $("rTitleBlock").classList.toggle("hidden", t.length === 0);
+
+    $("rReceived").textContent = it.received;
+    $("rCataloged").textContent = it.cataloged;
+    $("rSpine").textContent = it.spine;
+    $("rCovered").textContent = it.covered;
+
+    const hold = (it.holdName || "").trim();
+    $("rHoldName").textContent = hold || "";
+    $("rHoldRow").classList.toggle("hidden", hold.length === 0);
+
+    const adoptedTxt = formatMoney(it.adoptedAmt);
+    $("rAdoptedAmt").textContent = adoptedTxt;
+    $("rAdoptedRow").classList.toggle("hidden", adoptedTxt.length === 0);
+
+    // Bookplate row only if adopted
+    $("rBookplate").textContent = it.bookplate || "NO";
+    $("rBookplateRow").classList.toggle("hidden", adoptedTxt.length === 0);
+
+    $("rDonatedRow").classList.toggle("hidden", it.donated !== "YES");
+
+    $("rBarcodeText").textContent = it.barcode || "";
+    if(it.barcode){
+      try{
+        JsBarcode("#barcodeSvg", it.barcode, {
+          format:"CODE128",
+          width: 2,
+          height: 44,
+          displayValue: false,
+          margin: 0
+        });
+      }catch{}
+    }
+
+    $("rPrintedAt").textContent = it.printedAt || "";
+  }
+
+  // ----------------------------
+  // Table
+  // ----------------------------
+  function renderTable(){
+    const tbody = $("itemsTable");
+    tbody.innerHTML = "";
+
+    const q = $("search").value.trim().toLowerCase();
+    const filterSpecial = $("filterSpecial").value;
+    const showDone = $("showDone").value === "1";
+    const viewMode = $("viewMode").value;
+
+    let items = [...data.items];
+
+    if(q){
+      items = items.filter(it =>
+        (it.title || "").toLowerCase().includes(q) ||
+        (it.barcode || "").toLowerCase().includes(q)
+      );
+    }
+
+    if(filterSpecial === "1") items = items.filter(isSpecial);
+    if(filterSpecial === "0") items = items.filter(it => !isSpecial(it));
+
+    if(!showDone){
+      items = items.filter(it => !isDone(it));
+    }
+
+    // Compute scores once for sort + display
+    const scored = items.map(it => {
+      const p = priorityScore(it);
+      return { it, score: p.score, breakdown: p.breakdown };
+    });
+
+    // Sort by score desc, then by statusChangedAt asc? (older first), then updatedAt desc
+    scored.sort((a,b) => {
+      if(b.score !== a.score) return b.score - a.score;
+
+      // If tied, older statusChangedAt first (more stuck)
+      const ad = new Date(a.it.statusChangedAt || a.it.updatedAt || 0).getTime();
+      const bd = new Date(b.it.statusChangedAt || b.it.updatedAt || 0).getTime();
+      if(ad !== bd) return ad - bd;
+
+      return (b.it.updatedAt || "").localeCompare(a.it.updatedAt || "");
+    });
+
+    let final = scored;
+    if(viewMode === "top10"){
+      final = scored.slice(0, 10);
+    }
+
+    const total = data.items.length;
+    const doneCount = data.items.filter(isDone).length;
+    const specialCount = data.items.filter(isSpecial).length;
+    $("summary").textContent = `Total tracked: ${total} • Done: ${doneCount} • Special handling: ${specialCount}`;
+
+    for(const row of final){
+      const it = row.it;
+      const done = isDone(it);
+      const special = isSpecial(it);
+
+      const flags = [];
+      if(special) flags.push(`<span class="pill special">Special</span>`);
+      if(hasHold(it)) flags.push(`<span class="pill">Hold</span>`);
+      if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
+      if(hasAdopted(it) && (it.bookplate || "NO") === "NO") flags.push(`<span class="pill warn">Bookplate NO</span>`);
+      if(it.donated === "YES") flags.push(`<span class="pill">Donated</span>`);
+
+      const slip = (it.slipPrinted === "YES")
+        ? `<span class="pill yes">Printed</span>`
+        : `<span class="pill no">No slip</span>`;
+
+      const ageD = (it.received === "YES" && !done) ? daysSince(it.statusChangedAt) : 0;
+      const ageLabel = (it.received === "YES" && !done && ageD > 0) ? `Age: ${ageD}d` : "";
+
+      const breakdown = row.breakdown.join(", ");
+      const tr = document.createElement("tr");
+      tr.className = ageClass(it);
+      tr.innerHTML = `
+        <td>
+          <div class="mono" style="font-weight:900;font-size:14px;">${row.score}</div>
+          <div class="hint" title="${escapeHTML(breakdown)}">${escapeHTML(ageLabel)}</div>
+        </td>
+        <td>${done ? `<span class="pill done">YES</span>` : `<span class="pill no">NO</span>`}</td>
+        <td>${escapeHTML(it.title || "")}</td>
+        <td class="mono">${escapeHTML(it.barcode || "")}</td>
+        <td>${flags.join(" ")}</td>
+        <td>${slip}<div class="hint" style="margin-top:4px;">${escapeHTML(it.printedAt || "")}</div></td>
+        <td>
+          <div class="actions">
+            <button class="smallBtn secondary" onclick="loadById('${it.id}')">Load</button>
+            <button class="smallBtn secondary" onclick="loadAndPrint('${it.id}')">Print</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function loadById(id){
+    const it = data.items.find(x => x.id === id);
+    if(!it) return;
+    loadIntoEditor(it);
+    $("title").focus();
+  }
+
+  function loadAndPrint(id){
+    loadById(id);
+    printSlip();
+  }
+
+  // ----------------------------
+  // Scan to load/create
+  // ----------------------------
+  $("scan").addEventListener("keydown", (e) => {
+    if(e.key !== "Enter") return;
+    e.preventDefault();
+    const bc = $("scan").value.trim();
+    if(!bc) return;
+
+    let it = data.items.find(x => (x.barcode || "").trim() === bc) || null;
+
+    if(!it){
+      it = {
+        id: uid(),
+        barcode: bc,
+        title: "",
+        received: "NO",
+        cataloged: "NO",
+        spine: "NO",
+        covered: "NO",
+        holdName: "",
+        adoptedAmt: "",
+        bookplate: "NO",
+        donated: "NO",
+        slipPrinted: "NO",
+        printedAt: "",
+        statusSig: ["NO","NO","NO","NO","NO"].join("|"),
+        statusChangedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      data.items.push(it);
+      persist();
+    }
+
+    loadIntoEditor(it);
+    $("scan").value = "";
+    $("title").focus();
+  });
+
+  // Live sync (receipt only)
+  ["barcode","title","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
+    $(id).addEventListener("input", syncReceipt);
+    $(id).addEventListener("change", syncReceipt);
+  });
+
+  // Filters
+  ["search","filterSpecial","showDone","viewMode"].forEach(id => {
+    $(id).addEventListener("input", renderTable);
+    $(id).addEventListener("change", renderTable);
+  });
+
+  // Init
+  (function init(){
+    clearEditor();
+    renderTable();
+    syncReceipt();
+    $("scan").focus();
+  })();
+</script>
+</body>
+</html>
