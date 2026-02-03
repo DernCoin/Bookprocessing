@@ -347,6 +347,16 @@ table{
 
         <div class="row">
           <label for="received">Received</label>
+          <div class="row">
+          <label for="workType">Work type</label>
+          <select id="workType">
+            <option value="NEW">New processing</option>
+            <option value="FIX">General fixes</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="received">Received</label>
           <select id="received">
             <option>NO</option>
             <option>YES</option>
@@ -437,41 +447,49 @@ table{
       </div>
     </div>
 
-    <div id="tab-orders" class="tabPanel">
+     <div id="tab-orders" class="tabPanel">
       <div class="section">
         <h2>Book Orders</h2>
         <div class="row">
-          <label for="orderTitle">Title</label>
-          <input id="orderTitle" type="text" placeholder="Order title / author" />
+          <label for="orderNumber">Order #</label>
+          <input id="orderNumber" type="text" placeholder="Order number" />
         </div>
         <div class="row">
           <label for="orderVendor">Vendor</label>
           <input id="orderVendor" type="text" placeholder="Vendor or source" />
         </div>
         <div class="row">
-          <label for="orderQty">Quantity</label>
-          <input id="orderQty" type="number" min="1" step="1" placeholder="1" />
-        </div>
-        <div class="row">
-          <label for="orderStatus">Status</label>
-          <select id="orderStatus">
-            <option>Requested</option>
-            <option>Ordered</option>
-            <option>Shipped</option>
-            <option>Received</option>
-          </select>
-        </div>
-        <div class="row">
           <label for="orderPlaced">Ordered on</label>
           <input id="orderPlaced" type="date" />
         </div>
         <div class="row">
-          <label for="orderExpected">Expected</label>
-          <input id="orderExpected" type="date" />
-        </div>
-        <div class="row">
           <label for="orderNotes">Notes</label>
           <input id="orderNotes" type="text" placeholder="Rush, funding source, etc." />
+        </div>
+
+        <h3>Order items</h3>
+        <div class="row">
+          <label for="orderItemTitle">Item title</label>
+          <input id="orderItemTitle" type="text" placeholder="Item title" />
+        </div>
+        <div class="row">
+          <label for="orderItemBarcode">Item barcode</label>
+          <input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" />
+        </div>
+        <div class="btnRow">
+          <button class="secondary" onclick="addOrderItem()">Add item</button>
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Barcode</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orderItemsTable"></tbody>
+          </table>
         </div>
 
         <div class="btnRow">
@@ -491,12 +509,10 @@ table{
           <table>
             <thead>
               <tr>
-                <th>Status</th>
-                <th>Title</th>
+                <th>Order #</th>
                 <th>Vendor</th>
-                <th>Qty</th>
                 <th>Ordered</th>
-                <th>Expected</th>
+                <th>Items</th>
                 <th>Notes</th>
                 <th>Actions</th>
               </tr>
@@ -516,10 +532,11 @@ table{
         <div id="rSpecialTop" class="r-special hidden">⚠ SPECIAL HANDLING</div>
 
         <div class="r-title">PROCESSING STATUS</div>
-        <div class="r-rule"></div>
+         <div class="r-rule"></div>
 
         <div id="rTitleBlock" class="r-block hidden"></div>
 
+        <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right" id="rWorkType"></div></div>
         <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right" id="rReceived"></div></div>
         <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right" id="rCataloged"></div></div>
         <div class="r-line"><div class="r-left r-sub">Spine label</div><div class="r-right" id="rSpine"></div></div>
@@ -571,6 +588,7 @@ table{
   let data = loadData();
   let activeId = null;
   let activeOrderId = null;
+  let orderItems = [];
 
   function loadData(){
     try{
@@ -607,6 +625,10 @@ table{
             it.covered === "YES");
   }
 
+  function isGeneralFix(it){
+    return (it.workType || "NEW") === "FIX";
+  }
+
   function hasHold(it){
     return (it.holdName || "").trim().length > 0;
   }
@@ -641,11 +663,11 @@ table{
       .replaceAll("'","&#039;");
   }
 
-  function statusSignature(it){
+ function statusSignature(it){
     // What should reset “aging”:
-    // processing statuses + received + bookplate printed (since adopted workflow is real work)
+    // work type + processing statuses + received + bookplate printed (since adopted workflow is real work)
     return [
-      it.received, it.cataloged, it.spine, it.covered,
+      it.workType, it.received, it.cataloged, it.spine, it.covered,
       it.bookplate
     ].join("|");
   }
@@ -667,6 +689,7 @@ table{
 
     if(hasHold(it)){ score += 60; breakdown.push("hold+60"); }
     if(hasAdopted(it)){ score += 35; breakdown.push("adopted+35"); }
+    if(isGeneralFix(it)){ score += 25; breakdown.push("generalFix+25"); }
 
     // Bookplate avoidance helper: if adopted and bookplate NOT printed, add pressure.
     if(hasAdopted(it) && (it.bookplate || "NO") === "NO"){
@@ -715,6 +738,7 @@ table{
       barcode: $("barcode").value.trim(),
       title: $("title").value.trim(),
 
+      workType: $("workType").value,
       received: $("received").value,
       cataloged: $("cataloged").value,
       spine: $("spine").value,
@@ -740,6 +764,7 @@ table{
     $("barcode").value = it.barcode || "";
     $("title").value = it.title || "";
 
+    $("workType").value = it.workType || "NEW";
     $("received").value = it.received || "NO";
     $("cataloged").value = it.cataloged || "NO";
     $("spine").value = it.spine || "NO";
@@ -761,6 +786,7 @@ table{
     $("barcode").value = "";
     $("title").value = "";
 
+    $("workType").value = "NEW";
     $("received").value = "NO";
     $("cataloged").value = "NO";
     $("spine").value = "NO";
@@ -784,50 +810,50 @@ table{
   function getEditorOrder(){
     return {
       id: activeOrderId || orderUid(),
-      title: $("orderTitle").value.trim(),
+      orderNumber: $("orderNumber").value.trim(),
       vendor: $("orderVendor").value.trim(),
-      qty: $("orderQty").value,
-      status: $("orderStatus").value,
       orderedOn: $("orderPlaced").value,
-      expectedOn: $("orderExpected").value,
       notes: $("orderNotes").value.trim(),
+      items: [...orderItems],
       updatedAt: new Date().toISOString()
     };
   }
 
   function loadIntoOrderEditor(order){
     activeOrderId = order.id;
-    $("orderTitle").value = order.title || "";
+    $("orderNumber").value = order.orderNumber || order.title || "";
     $("orderVendor").value = order.vendor || "";
-    $("orderQty").value = order.qty || "";
-    $("orderStatus").value = order.status || "Requested";
     $("orderPlaced").value = order.orderedOn || "";
-    $("orderExpected").value = order.expectedOn || "";
     $("orderNotes").value = order.notes || "";
+    orderItems = Array.isArray(order.items) ? [...order.items] : [];
+    renderOrderItems();
   }
 
   function clearOrder(){
     activeOrderId = null;
-    $("orderTitle").value = "";
+    $("orderNumber").value = "";
     $("orderVendor").value = "";
-    $("orderQty").value = "";
-    $("orderStatus").value = "Requested";
     $("orderPlaced").value = "";
-    $("orderExpected").value = "";
     $("orderNotes").value = "";
+    $("orderItemTitle").value = "";
+    $("orderItemBarcode").value = "";
+    orderItems = [];
+    renderOrderItems();
   }
 
   function saveOrder(){
     const order = getEditorOrder();
-    if(!order.title){
-      alert("Order title is required.");
-      $("orderTitle").focus();
+    if(!order.orderNumber){
+      alert("Order # is required.");
+      $("orderNumber").focus();
       return;
     }
 
     const idx = data.orders.findIndex(x => x.id === order.id);
     if(idx >= 0) data.orders[idx] = order;
     else data.orders.push(order);
+    syncProcessingItemsFromOrder(order);
+    renderOrderItems();
     persist();
   }
 
@@ -838,8 +864,96 @@ table{
     }
     if(!confirm("Delete this order?")) return;
     data.orders = data.orders.filter(x => x.id !== activeOrderId);
+    data.items = data.items.filter(x => x.orderId !== activeOrderId);
     clearOrder();
     persist();
+  }
+
+  function addOrderItem(){
+    const title = $("orderItemTitle").value.trim();
+    const barcode = $("orderItemBarcode").value.trim();
+    if(!title && !barcode){
+      alert("Enter an item title or barcode.");
+      $("orderItemTitle").focus();
+      return;
+    }
+    orderItems.push({
+      id: uid(),
+      title,
+      barcode
+    });
+    $("orderItemTitle").value = "";
+    $("orderItemBarcode").value = "";
+    renderOrderItems();
+  }
+
+  function removeOrderItem(id){
+    orderItems = orderItems.filter(item => item.id !== id);
+    renderOrderItems();
+  }
+
+  function renderOrderItems(){
+    const tbody = $("orderItemsTable");
+    tbody.innerHTML = "";
+    for(const item of orderItems){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHTML(item.title || "")}</td>
+        <td class="mono">${escapeHTML(item.barcode || "")}</td>
+        <td>
+          <div class="actions">
+            <button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function syncProcessingItemsFromOrder(order){
+    const orderItemIds = new Set((order.items || []).map(item => item.id));
+    data.items = data.items.filter(item => item.orderId !== order.id || orderItemIds.has(item.id));
+
+    (order.items || []).forEach((orderItem, index) => {
+      const generatedBarcode = (!orderItem.barcode && order.orderNumber)
+        ? `ORDER-${order.orderNumber}-${index + 1}`
+        : "";
+      if(generatedBarcode){
+        orderItem.barcode = generatedBarcode;
+      }
+      const existing = data.items.find(item => item.id === orderItem.id);
+      const base = existing || {
+        id: orderItem.id,
+        barcode: orderItem.barcode || generatedBarcode || "",
+        title: orderItem.title || "",
+        received: "NO",
+        cataloged: "NO",
+        spine: "NO",
+        covered: "NO",
+        holdName: "",
+        adoptedAmt: "",
+        bookplate: "NO",
+        donated: "NO",
+        slipPrinted: "NO",
+        printedAt: "",
+        statusSig: ["NO","NO","NO","NO","NO"].join("|"),
+        statusChangedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      base.title = orderItem.title || base.title || "";
+      base.barcode = orderItem.barcode || base.barcode || "";
+      base.orderId = order.id;
+      base.orderNumber = order.orderNumber;
+      base.updatedAt = new Date().toISOString();
+
+      if(existing){
+        const index = data.items.findIndex(item => item.id === orderItem.id);
+        if(index >= 0) data.items[index] = base;
+      }else{
+        data.items.push(base);
+      }
+    });
   }
 
 
@@ -918,9 +1032,10 @@ table{
     $("rSpecialTop").classList.toggle("hidden", !isSpecial(it));
 
     const t = (it.title || "").trim();
-    $("rTitleBlock").textContent = t;
+   $("rTitleBlock").textContent = t;
     $("rTitleBlock").classList.toggle("hidden", t.length === 0);
 
+    $("rWorkType").textContent = isGeneralFix(it) ? "GENERAL FIX" : "NEW PROCESSING";
     $("rReceived").textContent = it.received;
     $("rCataloged").textContent = it.cataloged;
     $("rSpine").textContent = it.spine;
@@ -1010,7 +1125,8 @@ table{
     const total = data.items.length;
     const doneCount = data.items.filter(isDone).length;
     const specialCount = data.items.filter(isSpecial).length;
-    $("summary").textContent = `Total tracked: ${total} • Done: ${doneCount} • Special handling: ${specialCount}`;
+    const fixesCount = data.items.filter(isGeneralFix).length;
+    $("summary").textContent = `Total tracked: ${total} • Done: ${doneCount} • Special handling: ${specialCount} • General fixes: ${fixesCount}`;
 
     for(const row of final){
       const it = row.it;
@@ -1018,11 +1134,13 @@ table{
       const special = isSpecial(it);
 
       const flags = [];
+      if(isGeneralFix(it)) flags.push(`<span class="pill warn">General Fix</span>`);
       if(special) flags.push(`<span class="pill special">Special</span>`);
       if(hasHold(it)) flags.push(`<span class="pill">Hold</span>`);
       if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
       if(hasAdopted(it) && (it.bookplate || "NO") === "NO") flags.push(`<span class="pill warn">Bookplate NO</span>`);
       if(it.donated === "YES") flags.push(`<span class="pill">Donated</span>`);
+      if(it.orderNumber) flags.push(`<span class="pill">Order #${escapeHTML(it.orderNumber)}</span>`);
 
       const slip = (it.slipPrinted === "YES")
         ? `<span class="pill yes">Printed</span>`
@@ -1061,20 +1179,19 @@ table{
 
     const orders = [...data.orders];
     const total = orders.length;
-    const openCount = orders.filter(order => order.status !== "Received").length;
-    $("ordersSummary").textContent = `Total orders: ${total} • Open: ${openCount}`;
+    const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0);
+    $("ordersSummary").textContent = `Total orders: ${total} • Items: ${itemCount}`;
 
     orders.sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 
     for(const order of orders){
+      const itemsTotal = order.items?.length || 0;
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><span class="pill">${escapeHTML(order.status || "Requested")}</span></td>
-        <td>${escapeHTML(order.title || "")}</td>
+        <td>${escapeHTML(order.orderNumber || order.title || "")}</td>
         <td>${escapeHTML(order.vendor || "")}</td>
-        <td>${escapeHTML(order.qty || "")}</td>
         <td class="mono">${escapeHTML(order.orderedOn || "")}</td>
-        <td class="mono">${escapeHTML(order.expectedOn || "")}</td>
+        <td class="mono">${itemsTotal}</td>
         <td>${escapeHTML(order.notes || "")}</td>
         <td>
           <div class="actions">
@@ -1116,10 +1233,11 @@ table{
     let it = data.items.find(x => (x.barcode || "").trim() === bc) || null;
 
     if(!it){
-      it = {
+       it = {
         id: uid(),
         barcode: bc,
         title: "",
+        workType: "NEW",
         received: "NO",
         cataloged: "NO",
         spine: "NO",
@@ -1130,7 +1248,7 @@ table{
         donated: "NO",
         slipPrinted: "NO",
         printedAt: "",
-        statusSig: ["NO","NO","NO","NO","NO"].join("|"),
+        statusSig: ["NEW","NO","NO","NO","NO","NO"].join("|"),
         statusChangedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1144,7 +1262,7 @@ table{
   });
 
  // Live sync (receipt only)
-  ["barcode","title","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
+ ["barcode","title","workType","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
     $(id).addEventListener("input", syncReceipt);
     $(id).addEventListener("change", syncReceipt);
   });
