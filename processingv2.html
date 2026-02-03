@@ -204,7 +204,7 @@ table{
     justify-content:center;
   }
 
-  .receipt{
+ .receipt{
     width: var(--paper);
     background:#fff;
     border:1px solid var(--border);
@@ -259,18 +259,107 @@ table{
 
   .r-sub{
     font-weight:700;
+ }
+
+  /* ===== Bookplate styles ===== */
+  .bookplateSheet{
+    width: 8.5in;
+    height: 11in;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 3in);
+    grid-template-rows: repeat(3, 3.75in);
+    justify-content: space-between;
+    align-content: space-between;
+    padding: 0.25in 0.35in;
+    box-sizing: border-box;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .bookplateLabel{
+    position: relative;
+    width: 3in;
+    height: 3.75in;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+
+  .bookplateLabel.empty{
+    background: #f5f5f5;
+    border: 1px dashed #ddd;
+  }
+
+  .bookplateBorder{
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  .bookplateContent{
+    position: relative;
+    z-index: 1;
+    padding: var(--plate-padding, 16px);
+    width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    gap: 6px;
+  }
+
+  .bookplateLine{
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .bookplateLine.template{
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .bookplatePreviewHint{
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 12px;
   }
 
   @media print{
     body{ margin:0; background:#fff; }
-    .panel:not(.printpanel){ display:none !important; }
+    body.print-bookplates .panel{ display:none !important; }
+    body.print-bookplates .bookplatePrintPanel{ display:block !important; }
+    body:not(.print-bookplates) .panel:not(.printpanel){ display:none !important; }
     .printpanel h2{ display:none !important; }
     .receipt{
       border:none;
       border-radius:0;
       padding:0;
+      page: slip;
     }
-    @page{ size:80mm auto; margin:4mm; }
+    body.print-bookplates .bookplateSheet{
+      border:none;
+      border-radius:0;
+      padding:0.25in 0.35in;
+      page: bookplates;
+    }
+  }
+
+  @page slip{
+    size: 80mm auto;
+    margin: 4mm;
+  }
+
+  @page bookplates{
+    size: letter;
+    margin: 0.2in;
   }
 </style>
 </head>
@@ -285,6 +374,7 @@ table{
    <div class="tabs" role="tablist">
       <button class="tabButton active" type="button" data-tab="processing">Processing</button>
       <button class="tabButton" type="button" data-tab="orders">Book Orders</button>
+      <button class="tabButton" type="button" data-tab="bookplates">Bookplates</button>
       <button class="tabButton" type="button" data-tab="settings">Settings</button>
     </div>
 
@@ -522,6 +612,77 @@ table{
       </div>
     </div>
 
+    <div id="tab-bookplates" class="tabPanel">
+      <div class="section">
+        <h2>Bookplate generator</h2>
+
+        <div class="row">
+          <label for="bookplateTemplate">Template</label>
+          <select id="bookplateTemplate">
+            <option value="donated">Donated by</option>
+            <option value="memory">In memory of</option>
+            <option value="given">Given by</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="bookplateLine1">Name line 1</label>
+          <input id="bookplateLine1" type="text" placeholder="Name" />
+        </div>
+
+        <div class="row">
+          <label for="bookplateLine2">Name line 2</label>
+          <input id="bookplateLine2" type="text" placeholder="Optional second line" />
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Print options</h2>
+        <div class="row">
+          <label for="bookplateFillSheet">Fill sheet (6)</label>
+          <input id="bookplateFillSheet" type="checkbox" checked />
+        </div>
+        <div class="row">
+          <label for="bookplateStartPos">Start position</label>
+          <select id="bookplateStartPos">
+            <option value="1">1 (Top left)</option>
+            <option value="2">2 (Top right)</option>
+            <option value="3">3 (Middle left)</option>
+            <option value="4">4 (Middle right)</option>
+            <option value="5">5 (Bottom left)</option>
+            <option value="6">6 (Bottom right)</option>
+          </select>
+        </div>
+        <div class="btnRow">
+          <button type="button" onclick="printBookplates()">Print bookplates</button>
+          <button class="secondary" type="button" onclick="clearBookplateForm()">Clear</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Border</h2>
+        <div class="row">
+          <label for="bookplateBorderOn">Show border</label>
+          <input id="bookplateBorderOn" type="checkbox" checked />
+        </div>
+        <div class="row">
+          <label for="bookplateBorderSelect">Border image</label>
+          <select id="bookplateBorderSelect"></select>
+        </div>
+        <div class="row">
+          <label>Preview</label>
+          <img id="bookplateBorderPreview" alt="Border preview" style="max-width:120px;max-height:120px;border:1px solid #eee;border-radius:8px;background:#fff;" />
+        </div>
+        <div class="row">
+          <label for="bookplatePadding">Text padding</label>
+          <div>
+            <input id="bookplatePadding" type="range" min="0" max="40" step="1" value="16" />
+            <div class="hint">Padding: <span id="bookplatePaddingValue">16</span>px</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="tab-settings" class="tabPanel">
       <div class="section">
         <h2>Data management</h2>
@@ -536,13 +697,25 @@ table{
         <input id="importFile" type="file" accept="application/json" class="hidden" />
         <div class="hint">
           Export downloads a JSON backup of all items and orders. Import replaces the current dataset with the file contents.
+       </div>
+      </div>
+
+      <div class="section">
+        <h2>Bookplate borders</h2>
+        <div class="row">
+          <label for="borderUpload">Upload border</label>
+          <input id="borderUpload" type="file" accept="image/*" />
         </div>
+        <div class="hint">
+          Upload transparent PNG, GIF, or JPG borders. These are stored locally in this browser.
+        </div>
+        <div id="borderList" class="tableWrap" style="margin-top:10px;"></div>
       </div>
     </div>
   </div>
 
   <!-- RIGHT: receipt -->
-  <div class="panel printpanel">
+  <div class="panel printpanel" id="slipPreviewPanel">
     <h2>Slip Preview</h2>
     <div class="receiptWrap">
       <div class="receipt" id="receipt">
@@ -595,6 +768,12 @@ table{
     </div>
   </div>
 
+  <div class="panel printpanel hidden bookplatePrintPanel" id="bookplatePreviewPanel">
+    <h2>Bookplate Preview</h2>
+    <div class="bookplateSheet" id="bookplateSheet"></div>
+    <div class="bookplatePreviewHint">Avery 6874 labels (3&quot; x 3 3/4&quot;), 2 columns × 3 rows.</div>
+  </div>
+
 </div>
 
 <script>
@@ -602,7 +781,7 @@ table{
 
  const STORAGE_KEY = "bp_v2_priority";
   const EXPORT_TIMESTAMP_KEY = "bp_v2_priority_last_export";
-  const defaultData = { items: [], orders: [] };
+ const defaultData = { items: [], orders: [], bookplateBorders: [] };
   let data = loadData();
   let activeId = null;
   let activeOrderId = null;
@@ -613,8 +792,9 @@ table{
       const raw = localStorage.getItem(STORAGE_KEY);
       if(!raw) return structuredClone(defaultData);
       const parsed = JSON.parse(raw);
-      parsed.items ??= [];
+       parsed.items ??= [];
       parsed.orders ??= [];
+      parsed.bookplateBorders ??= [];
       return parsed;
     }catch{
       return structuredClone(defaultData);
@@ -626,6 +806,8 @@ table{
     renderTable();
     renderOrders();
     syncReceipt();
+    renderBookplateBorders();
+    renderBookplateSheet();
     renderSettings();
   }
 
@@ -682,9 +864,178 @@ table{
     renderSettings();
   }
 
-  function renderSettings(){
+   function renderSettings(){
     const stamp = getLastExportStamp();
     $("lastExportStamp").textContent = stamp || "Never";
+  }
+
+  const bookplateTemplates = {
+    donated: "Donated by",
+    memory: "In memory of",
+    given: "Given by"
+  };
+
+  function renderBookplateBorders(){
+    const select = $("bookplateBorderSelect");
+    const list = $("borderList");
+    const borders = data.bookplateBorders || [];
+    const previousSelection = select.value;
+
+    select.innerHTML = "";
+    if(borders.length === 0){
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "No borders uploaded";
+      select.appendChild(option);
+    }else{
+      const emptyOption = document.createElement("option");
+      emptyOption.value = "";
+      emptyOption.textContent = "No border";
+      select.appendChild(emptyOption);
+      borders.forEach(border => {
+        const option = document.createElement("option");
+        option.value = border.id;
+        option.textContent = border.name || "Border";
+        select.appendChild(option);
+      });
+    }
+
+    if(previousSelection && borders.find(border => border.id === previousSelection)){
+      select.value = previousSelection;
+    }else{
+      select.value = "";
+    }
+
+    updateBookplateBorderPreview();
+
+    if(!list) return;
+    if(borders.length === 0){
+      list.innerHTML = `<div class="hint">No borders uploaded yet.</div>`;
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Preview</th>
+          <th>Name</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const tbody = table.querySelector("tbody");
+    borders.forEach(border => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><img src="${border.dataUrl}" alt="${escapeHTML(border.name || "Border")}" style="max-width:80px;max-height:80px;border:1px solid #eee;border-radius:6px;background:#fff;" /></td>
+        <td>${escapeHTML(border.name || "")}</td>
+        <td>
+          <div class="actions">
+            <button class="smallBtn danger" onclick="removeBorder('${border.id}')">Delete</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    list.innerHTML = "";
+    list.appendChild(table);
+  }
+
+  function updateBookplateBorderPreview(){
+    const preview = $("bookplateBorderPreview");
+    if(!preview) return;
+    const borders = data.bookplateBorders || [];
+    const selected = borders.find(border => border.id === $("bookplateBorderSelect").value);
+    preview.src = selected?.dataUrl || "";
+    preview.style.visibility = selected ? "visible" : "hidden";
+  }
+
+  function removeBorder(id){
+    data.bookplateBorders = (data.bookplateBorders || []).filter(border => border.id !== id);
+    persist();
+  }
+
+  function getBookplateState(){
+    return {
+      template: $("bookplateTemplate").value,
+      line1: $("bookplateLine1").value.trim(),
+      line2: $("bookplateLine2").value.trim(),
+      fillSheet: $("bookplateFillSheet").checked,
+      startPos: Number($("bookplateStartPos").value || 1),
+      borderOn: $("bookplateBorderOn").checked,
+      borderId: $("bookplateBorderSelect").value,
+      padding: Number($("bookplatePadding").value || 0)
+    };
+  }
+
+  function buildBookplateLines(state){
+    const templateLine = bookplateTemplates[state.template] || "Donated by";
+    return [templateLine, state.line1, state.line2].filter(line => line.trim().length > 0);
+  }
+
+  function renderBookplateSheet(){
+    const sheet = $("bookplateSheet");
+    if(!sheet) return;
+    const state = getBookplateState();
+    const lines = buildBookplateLines(state);
+    const borders = data.bookplateBorders || [];
+    const selectedBorder = borders.find(border => border.id === state.borderId);
+
+    sheet.style.setProperty("--plate-padding", `${state.padding}px`);
+    sheet.innerHTML = "";
+
+    for(let i = 1; i <= 6; i += 1){
+      const label = document.createElement("div");
+      label.className = "bookplateLabel";
+      const shouldFill = state.fillSheet
+        ? i >= state.startPos
+        : i === state.startPos;
+
+      if(shouldFill){
+        if(state.borderOn && selectedBorder){
+          const img = document.createElement("img");
+          img.className = "bookplateBorder";
+          img.alt = "Bookplate border";
+          img.src = selectedBorder.dataUrl;
+          label.appendChild(img);
+        }
+
+        const content = document.createElement("div");
+        content.className = "bookplateContent";
+        lines.forEach((line, index) => {
+          const div = document.createElement("div");
+          div.className = `bookplateLine${index === 0 ? " template" : ""}`;
+          div.textContent = line;
+          content.appendChild(div);
+        });
+        label.appendChild(content);
+      }else{
+        label.classList.add("empty");
+      }
+      sheet.appendChild(label);
+    }
+  }
+
+  function clearBookplateForm(){
+    $("bookplateTemplate").value = "donated";
+    $("bookplateLine1").value = "";
+    $("bookplateLine2").value = "";
+    $("bookplateFillSheet").checked = true;
+    $("bookplateStartPos").value = "1";
+    $("bookplateBorderOn").checked = true;
+    $("bookplatePadding").value = "16";
+    $("bookplatePaddingValue").textContent = "16";
+    const borders = data.bookplateBorders || [];
+    $("bookplateBorderSelect").value = borders[0]?.id || "";
+    updateBookplateBorderPreview();
+    renderBookplateSheet();
+  }
+
+  function printBookplates(){
+    document.body.classList.add("print-bookplates");
+    window.print();
   }
 
   function escapeHTML(str){
@@ -1282,11 +1633,12 @@ table{
     $("importFile").click();
   }
 
-  function normalizeImport(raw){
+ function normalizeImport(raw){
     const incoming = (raw && typeof raw === "object" && raw.data) ? raw.data : raw;
     const items = Array.isArray(incoming?.items) ? incoming.items : [];
     const orders = Array.isArray(incoming?.orders) ? incoming.orders : [];
-    return { items, orders };
+    const bookplateBorders = Array.isArray(incoming?.bookplateBorders) ? incoming.bookplateBorders : [];
+    return { items, orders, bookplateBorders };
   }
 
 
@@ -1342,6 +1694,42 @@ table{
     $(id).addEventListener("change", renderTable);
   });
 
+  // Bookplate inputs
+  ["bookplateTemplate","bookplateLine1","bookplateLine2","bookplateFillSheet","bookplateStartPos","bookplateBorderOn","bookplateBorderSelect"].forEach(id => {
+    $(id).addEventListener("input", renderBookplateSheet);
+    $(id).addEventListener("change", renderBookplateSheet);
+  });
+
+  $("bookplatePadding").addEventListener("input", () => {
+    $("bookplatePaddingValue").textContent = $("bookplatePadding").value;
+    renderBookplateSheet();
+  });
+
+  $("bookplateBorderSelect").addEventListener("change", () => {
+    updateBookplateBorderPreview();
+  });
+
+  $("borderUpload").addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      data.bookplateBorders = data.bookplateBorders || [];
+      data.bookplateBorders.push({
+        id: uid(),
+        name: file.name,
+        dataUrl: reader.result
+      });
+      persist();
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  });
+
+  window.addEventListener("afterprint", () => {
+    document.body.classList.remove("print-bookplates");
+  });
+
   // Init
  (function init(){
     clearEditor();
@@ -1350,11 +1738,13 @@ table{
     renderOrders();
     syncReceipt();
     renderSettings();
+    renderBookplateBorders();
+    clearBookplateForm();
     $("scan").focus();
   })();
 
   // Tabs
-  document.querySelectorAll(".tabButton").forEach(btn => {
+   document.querySelectorAll(".tabButton").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tabButton").forEach(tab => tab.classList.remove("active"));
       document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.remove("active"));
@@ -1362,6 +1752,8 @@ table{
       const target = btn.dataset.tab;
       const panel = document.getElementById(`tab-${target}`);
       if(panel) panel.classList.add("active");
+      $("slipPreviewPanel").classList.toggle("hidden", target === "bookplates");
+      $("bookplatePreviewPanel").classList.toggle("hidden", target !== "bookplates");
     });
   });
 
@@ -1384,4 +1776,3 @@ table{
 </script>
 </body>
 </html>
-
