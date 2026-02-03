@@ -282,9 +282,10 @@ table{
   <div class="panel">
     <h1>Book Processing Dashboard v2.0</h1>
 
-    <div class="tabs" role="tablist">
+   <div class="tabs" role="tablist">
       <button class="tabButton active" type="button" data-tab="processing">Processing</button>
       <button class="tabButton" type="button" data-tab="orders">Book Orders</button>
+      <button class="tabButton" type="button" data-tab="settings">Settings</button>
     </div>
 
     <div id="tab-processing" class="tabPanel active">
@@ -520,6 +521,24 @@ table{
         </div>
       </div>
     </div>
+
+    <div id="tab-settings" class="tabPanel">
+      <div class="section">
+        <h2>Data management</h2>
+        <div class="row">
+          <label>Last export</label>
+          <div class="mono" id="lastExportStamp">Never</div>
+        </div>
+        <div class="btnRow">
+          <button class="secondary" onclick="exportAllData()">Export all data</button>
+          <button class="secondary" onclick="triggerImport()">Import data</button>
+        </div>
+        <input id="importFile" type="file" accept="application/json" class="hidden" />
+        <div class="hint">
+          Export downloads a JSON backup of all items and orders. Import replaces the current dataset with the file contents.
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- RIGHT: receipt -->
@@ -581,7 +600,8 @@ table{
 <script>
   const $ = (id) => document.getElementById(id);
 
-  const STORAGE_KEY = "bp_v2_priority";
+ const STORAGE_KEY = "bp_v2_priority";
+  const EXPORT_TIMESTAMP_KEY = "bp_v2_priority_last_export";
   const defaultData = { items: [], orders: [] };
   let data = loadData();
   let activeId = null;
@@ -601,11 +621,12 @@ table{
     }
   }
 
-  function persist(){
+ function persist(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     renderTable();
     renderOrders();
     syncReceipt();
+    renderSettings();
   }
 
   function uid(){
@@ -650,6 +671,20 @@ table{
  function nowStamp(){
     const d = new Date();
     return d.toLocaleString([], { year:"numeric", month:"numeric", day:"numeric", hour:"numeric", minute:"2-digit" });
+  }
+
+  function getLastExportStamp(){
+    return localStorage.getItem(EXPORT_TIMESTAMP_KEY) || "";
+  }
+
+  function setLastExportStamp(value){
+    localStorage.setItem(EXPORT_TIMESTAMP_KEY, value);
+    renderSettings();
+  }
+
+  function renderSettings(){
+    const stamp = getLastExportStamp();
+    $("lastExportStamp").textContent = stamp || "Never";
   }
 
   function escapeHTML(str){
@@ -1220,6 +1255,42 @@ table{
   }
 
   // ----------------------------
+  // Import / Export
+  // ----------------------------
+  function exportAllData(){
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      data
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const filename = `book-processing-backup-${stamp}.json`;
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setLastExportStamp(nowStamp());
+  }
+
+  function triggerImport(){
+    $("importFile").value = "";
+    $("importFile").click();
+  }
+
+  function normalizeImport(raw){
+    const incoming = (raw && typeof raw === "object" && raw.data) ? raw.data : raw;
+    const items = Array.isArray(incoming?.items) ? incoming.items : [];
+    const orders = Array.isArray(incoming?.orders) ? incoming.orders : [];
+    return { items, orders };
+  }
+
+
+  // ----------------------------
   // Scan to load/create
   // ----------------------------
   $("scan").addEventListener("keydown", (e) => {
@@ -1271,13 +1342,14 @@ table{
     $(id).addEventListener("change", renderTable);
   });
 
- // Init
-  (function init(){
+  // Init
+ (function init(){
     clearEditor();
     clearOrder();
     renderTable();
     renderOrders();
     syncReceipt();
+    renderSettings();
     $("scan").focus();
   })();
 
@@ -1292,6 +1364,24 @@ table{
       if(panel) panel.classList.add("active");
     });
   });
+
+  $("importFile").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if(!file) return;
+    try{
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      if(!confirm("Importing will replace all current items and orders. Continue?")) return;
+      data = normalizeImport(parsed);
+      persist();
+      clearEditor();
+      clearOrder();
+      alert("Import complete.");
+    }catch{
+      alert("Import failed. Please choose a valid JSON backup file.");
+    }
+  });
 </script>
 </body>
 </html>
+
