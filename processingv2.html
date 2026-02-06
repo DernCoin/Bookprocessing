@@ -6,6 +6,7 @@
 <title>Book Processing Dashboard v2.0 (Priority)</title>
 
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
 
 <style>
   :root{
@@ -182,6 +183,36 @@ table{
     display:flex;
     gap:8px;
     flex-wrap:wrap;
+  }
+
+  .uploadPanel{
+    border:1px dashed #d6d6d6;
+    border-radius:12px;
+    padding:12px;
+    background:#fff;
+  }
+
+  .uploadSummary{
+    margin-top:10px;
+    font-size:13px;
+    color:#222;
+    font-weight:700;
+  }
+
+  .uploadList{
+    margin-top:8px;
+    max-height:160px;
+    overflow:auto;
+    border:1px solid #eee;
+    border-radius:10px;
+    padding:8px;
+    background:#fafafa;
+    font-size:12px;
+  }
+
+  .uploadList ul{
+    margin:0;
+    padding-left:16px;
   }
   .smallBtn{
     padding:6px 10px;
@@ -570,6 +601,10 @@ table{
           <label for="orderItemBarcode">Item barcode</label>
           <input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" />
         </div>
+        <div class="row">
+          <label for="orderItemPrice">Price paid</label>
+          <input id="orderItemPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+        </div>
         <div class="btnRow">
           <button class="secondary" onclick="addOrderItem()">Add item</button>
         </div>
@@ -579,11 +614,29 @@ table{
               <tr>
                 <th>Item</th>
                 <th>Barcode</th>
+                <th>Price</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="orderItemsTable"></tbody>
           </table>
+        </div>
+
+        <div class="section uploadPanel">
+          <h3>Amazon order PDF import</h3>
+          <div class="row">
+            <label>Upload summary</label>
+            <div>
+              <button class="secondary" type="button" onclick="triggerAmazonPdfUpload()">Upload Amazon order PDF</button>
+              <input id="amazonPdfUpload" type="file" accept="application/pdf" class="hidden" />
+              <div class="hint">PDF is parsed locally in your browser. No data leaves this device.</div>
+            </div>
+          </div>
+          <div id="amazonPdfSummary" class="uploadSummary hidden"></div>
+          <div id="amazonPdfList" class="uploadList hidden"></div>
+          <div class="btnRow">
+            <button id="amazonPdfAddButton" class="secondary" type="button" onclick="applyAmazonPdfItems()" disabled>Add items to order</button>
+          </div>
         </div>
 
         <div class="btnRow">
@@ -793,6 +846,17 @@ table{
   let activeId = null;
   let activeOrderId = null;
   let orderItems = [];
+  let amazonPdfPreview = { items: [], orderNumber: "", orderPlaced: "" };
+
+  const PDFJS_CDN_URLS = [
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js",
+    "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.min.js"
+  ];
+  const PDFJS_WORKER_SRCS = [
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js",
+    "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.js"
+  ];
+  let pdfLibLoadPromise = null;
 
   function loadData(){
     try{
@@ -1228,6 +1292,7 @@ table{
     $("orderNotes").value = "";
     $("orderItemTitle").value = "";
     $("orderItemBarcode").value = "";
+    $("orderItemPrice").value = "";
     orderItems = [];
     renderOrderItems();
   }
@@ -1263,6 +1328,7 @@ table{
   function addOrderItem(){
     const title = $("orderItemTitle").value.trim();
     const barcode = $("orderItemBarcode").value.trim();
+    const pricePaid = $("orderItemPrice").value.trim();
     if(!title && !barcode){
       alert("Enter an item title or barcode.");
       $("orderItemTitle").focus();
@@ -1271,10 +1337,12 @@ table{
     orderItems.push({
       id: uid(),
       title,
-      barcode
+      barcode,
+      pricePaid
     });
     $("orderItemTitle").value = "";
     $("orderItemBarcode").value = "";
+    $("orderItemPrice").value = "";
     renderOrderItems();
   }
 
@@ -1291,6 +1359,7 @@ table{
       tr.innerHTML = `
         <td>${escapeHTML(item.title || "")}</td>
         <td class="mono">${escapeHTML(item.barcode || "")}</td>
+        <td class="mono">${escapeHTML(formatMoney(item.pricePaid) || "")}</td>
         <td>
           <div class="actions">
             <button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button>
@@ -1317,6 +1386,7 @@ table{
         id: orderItem.id,
         barcode: orderItem.barcode || generatedBarcode || "",
         title: orderItem.title || "",
+        pricePaid: orderItem.pricePaid || "",
         received: "NO",
         cataloged: "NO",
         spine: "NO",
@@ -1334,6 +1404,7 @@ table{
 
       base.title = orderItem.title || base.title || "";
       base.barcode = orderItem.barcode || base.barcode || "";
+      base.pricePaid = orderItem.pricePaid || base.pricePaid || "";
       base.orderId = order.id;
       base.orderNumber = order.orderNumber;
       base.updatedAt = new Date().toISOString();
@@ -1716,6 +1787,194 @@ table{
     updateBookplateBorderPreview();
   });
 
+  function triggerAmazonPdfUpload(){
+    $("amazonPdfUpload").value = "";
+    $("amazonPdfUpload").click();
+  }
+
+  function loadScript(src){
+    return new Promise(resolve => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }
+
+  function setPdfWorkerSource(){
+    if(!window.pdfjsLib) return;
+    const workerSrc = window.pdfjsLib.GlobalWorkerOptions.workerSrc;
+    if(workerSrc) return;
+    const preferredWorker = PDFJS_WORKER_SRCS.find(Boolean);
+    if(preferredWorker){
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = preferredWorker;
+    }
+  }
+
+  async function ensurePdfLib(){
+    if(window.pdfjsLib){
+      setPdfWorkerSource();
+      return true;
+    }
+    if(!pdfLibLoadPromise){
+      pdfLibLoadPromise = (async () => {
+        for(let i = 0; i < PDFJS_CDN_URLS.length; i += 1){
+          const loaded = await loadScript(PDFJS_CDN_URLS[i]);
+          if(loaded && window.pdfjsLib){
+            if(PDFJS_WORKER_SRCS[i]){
+              window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRCS[i];
+            }
+            return true;
+          }
+        }
+        return false;
+      })();
+    }
+    const ready = await pdfLibLoadPromise;
+    if(!ready){
+      alert("PDF support failed to load. Please check your network connection and reload the page.");
+    }
+    return ready;
+  }
+
+  function normalizePrice(value){
+    const cleaned = String(value || "").replace(/[$,]/g, "");
+    const n = Number(cleaned);
+    if(!isFinite(n) || n <= 0) return "";
+    return n.toFixed(2);
+  }
+
+  function mergeTextItemsIntoLines(items){
+    const lines = [];
+    const tolerance = 2;
+    items.forEach(item => {
+      const text = item.str?.trim();
+      if(!text) return;
+      const x = item.transform[4];
+      const y = item.transform[5];
+      let line = lines.find(entry => Math.abs(entry.y - y) < tolerance);
+      if(!line){
+        line = { y, items: [] };
+        lines.push(line);
+      }
+      line.items.push({ x, text });
+    });
+    lines.forEach(line => line.items.sort((a,b) => a.x - b.x));
+    lines.sort((a,b) => b.y - a.y);
+    return lines
+      .map(line => line.items.map(item => item.text).join(" ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+  }
+
+  async function extractPdfLines(file){
+    if(!await ensurePdfLib()) return [];
+    const buffer = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+    const lines = [];
+    for(let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1){
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      lines.push(...mergeTextItemsIntoLines(content.items || []));
+    }
+    return lines;
+  }
+
+  function parseAmazonOrderLines(lines){
+    const items = [];
+    let orderNumber = "";
+    let orderPlaced = "";
+
+    for(let i = 0; i < lines.length; i += 1){
+      const line = lines[i];
+      if(!orderNumber){
+        const match = line.match(/order number:\s*([0-9-]+)/i);
+        if(match) orderNumber = match[1];
+      }
+      if(!orderPlaced){
+        const match = line.match(/order placed:\s*([A-Za-z]+ \d{1,2}, \d{4})/i);
+        if(match) orderPlaced = match[1];
+      }
+
+      const itemMatch = line.match(/\b(\d+)\s+of:\s*(.+)/i);
+      if(itemMatch){
+        const title = itemMatch[2].trim();
+        let priceMatch = line.match(/\$[\d,]+\.\d{2}/);
+        if(!priceMatch){
+          for(let j = i + 1; j < Math.min(i + 4, lines.length); j += 1){
+            if(/subtotal|total|tax|shipping|handling/i.test(lines[j])) break;
+            const nextPrice = lines[j].match(/\$[\d,]+\.\d{2}/);
+            if(nextPrice){
+              priceMatch = nextPrice;
+              break;
+            }
+          }
+        }
+        const pricePaid = priceMatch ? normalizePrice(priceMatch[0]) : "";
+        items.push({
+          id: uid(),
+          title,
+          barcode: "",
+          pricePaid
+        });
+      }
+    }
+    return { items, orderNumber, orderPlaced };
+  }
+
+  function renderAmazonPdfPreview(){
+    const summary = $("amazonPdfSummary");
+    const list = $("amazonPdfList");
+    const addButton = $("amazonPdfAddButton");
+    const count = amazonPdfPreview.items.length;
+
+    if(count === 0){
+      summary.classList.add("hidden");
+      list.classList.add("hidden");
+      addButton.disabled = true;
+      return;
+    }
+
+    summary.classList.remove("hidden");
+    summary.textContent = `${count} items found${amazonPdfPreview.orderNumber ? ` • Order #${amazonPdfPreview.orderNumber}` : ""}`;
+    list.classList.remove("hidden");
+    list.innerHTML = `
+      <ul>
+        ${amazonPdfPreview.items.map(item => `<li>${escapeHTML(item.title)}${item.pricePaid ? ` — $${escapeHTML(item.pricePaid)}` : ""}</li>`).join("")}
+      </ul>
+    `;
+    addButton.disabled = false;
+  }
+
+  function applyAmazonPdfItems(){
+    if(amazonPdfPreview.items.length === 0) return;
+    if(amazonPdfPreview.orderNumber && !$("orderNumber").value.trim()){
+      $("orderNumber").value = amazonPdfPreview.orderNumber;
+    }
+    if(amazonPdfPreview.orderPlaced && !$("orderPlaced").value){
+      const parsedDate = new Date(amazonPdfPreview.orderPlaced);
+      if(isFinite(parsedDate)){
+        $("orderPlaced").value = parsedDate.toISOString().slice(0,10);
+      }
+    }
+    if(!$("orderVendor").value.trim()){
+      $("orderVendor").value = "Amazon";
+    }
+    orderItems = [...orderItems, ...amazonPdfPreview.items.map(item => ({
+      id: item.id || uid(),
+      title: item.title || "",
+      barcode: item.barcode || "",
+      pricePaid: item.pricePaid || ""
+    }))];
+    renderOrderItems();
+    renderAmazonPdfPreview();
+    if($("orderNumber").value.trim()){
+      saveOrder();
+    }else{
+      alert("Items added. Enter an order # to save them.");
+    }
+  }
+
   $("borderUpload").addEventListener("change", (event) => {
     const file = event.target.files?.[0];
     if(!file) return;
@@ -1735,6 +1994,28 @@ table{
 
   window.addEventListener("afterprint", () => {
     document.body.classList.remove("print-bookplates");
+  });
+
+  $("amazonPdfUpload").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if(!file) return;
+    if(!await ensurePdfLib()){
+      event.target.value = "";
+      return;
+    }
+    $("amazonPdfAddButton").disabled = true;
+    $("amazonPdfSummary").classList.remove("hidden");
+    $("amazonPdfSummary").textContent = "Parsing PDF…";
+    try{
+      const lines = await extractPdfLines(file);
+      amazonPdfPreview = parseAmazonOrderLines(lines);
+      renderAmazonPdfPreview();
+    }catch{
+      amazonPdfPreview = { items: [], orderNumber: "", orderPlaced: "" };
+      $("amazonPdfSummary").classList.remove("hidden");
+      $("amazonPdfSummary").textContent = "Unable to parse that PDF. Please try another Amazon order summary.";
+      $("amazonPdfList").classList.add("hidden");
+    }
   });
 
   // Init
