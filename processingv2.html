@@ -632,6 +632,15 @@ table{
               <div class="hint">PDF is parsed locally in your browser. No data leaves this device.</div>
             </div>
           </div>
+          <div class="row">
+            <label>PDF.js fallback</label>
+            <div>
+              <button class="secondary" type="button" onclick="triggerPdfJsUpload()">Load PDF.js files</button>
+              <input id="pdfJsLibUpload" type="file" accept=".js,application/javascript" class="hidden" />
+              <input id="pdfJsWorkerUpload" type="file" accept=".js,application/javascript" class="hidden" />
+              <div class="hint">If network CDNs are blocked, choose a local <code>pdf.min.js</code> file (and optional <code>pdf.worker.min.js</code>).</div>
+            </div>
+          </div>
           <div id="amazonPdfSummary" class="uploadSummary hidden"></div>
           <div id="amazonPdfList" class="uploadList hidden"></div>
           <div class="btnRow">
@@ -857,6 +866,8 @@ table{
     "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.js"
   ];
   let pdfLibLoadPromise = null;
+  let localPdfLibUrl = "";
+  let localPdfWorkerUrl = "";
 
   function loadData(){
     try{
@@ -1792,6 +1803,12 @@ table{
     $("amazonPdfUpload").click();
   }
 
+  function triggerPdfJsUpload(){
+    $("pdfJsLibUpload").value = "";
+    $("pdfJsWorkerUpload").value = "";
+    $("pdfJsLibUpload").click();
+  }
+
   function loadScript(src){
     return new Promise(resolve => {
       const script = document.createElement("script");
@@ -1806,16 +1823,45 @@ table{
     if(!window.pdfjsLib) return;
     const workerSrc = window.pdfjsLib.GlobalWorkerOptions.workerSrc;
     if(workerSrc) return;
-    const preferredWorker = PDFJS_WORKER_SRCS.find(Boolean);
+    const preferredWorker = localPdfWorkerUrl || PDFJS_WORKER_SRCS.find(Boolean);
     if(preferredWorker){
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = preferredWorker;
+    }else{
+      window.pdfjsLib.disableWorker = true;
     }
+  }
+
+  async function loadPdfJsFromLocalFiles(libFile, workerFile){
+    if(!libFile) return false;
+    const libText = await libFile.text();
+    const libBlob = new Blob([libText], { type: "application/javascript" });
+    localPdfLibUrl = URL.createObjectURL(libBlob);
+    if(workerFile){
+      const workerText = await workerFile.text();
+      const workerBlob = new Blob([workerText], { type: "application/javascript" });
+      localPdfWorkerUrl = URL.createObjectURL(workerBlob);
+    }else{
+      localPdfWorkerUrl = "";
+    }
+    const loaded = await loadScript(localPdfLibUrl);
+    if(loaded && window.pdfjsLib){
+      setPdfWorkerSource();
+      return true;
+    }
+    return false;
   }
 
   async function ensurePdfLib(){
     if(window.pdfjsLib){
       setPdfWorkerSource();
       return true;
+    }
+    if(localPdfLibUrl){
+      const loadedLocal = await loadScript(localPdfLibUrl);
+      if(loadedLocal && window.pdfjsLib){
+        setPdfWorkerSource();
+        return true;
+      }
     }
     if(!pdfLibLoadPromise){
       pdfLibLoadPromise = (async () => {
@@ -1833,7 +1879,7 @@ table{
     }
     const ready = await pdfLibLoadPromise;
     if(!ready){
-      alert("PDF support failed to load. Please check your network connection and reload the page.");
+      alert("PDF support failed to load. Please check your network connection, or use the PDF.js fallback to load local files.");
     }
     return ready;
   }
@@ -2016,6 +2062,25 @@ table{
       $("amazonPdfSummary").textContent = "Unable to parse that PDF. Please try another Amazon order summary.";
       $("amazonPdfList").classList.add("hidden");
     }
+  });
+
+  $("pdfJsLibUpload").addEventListener("change", async (event) => {
+    const libFile = event.target.files?.[0];
+    if(!libFile) return;
+    const workerFile = $("pdfJsWorkerUpload").files?.[0];
+    const loaded = await loadPdfJsFromLocalFiles(libFile, workerFile);
+    if(!loaded){
+      alert("Unable to load the PDF.js files you selected.");
+    }else{
+      alert("PDF.js loaded from local files. You can now upload an Amazon order PDF.");
+    }
+  });
+
+  $("pdfJsWorkerUpload").addEventListener("change", async () => {
+    const libFile = $("pdfJsLibUpload").files?.[0];
+    const workerFile = $("pdfJsWorkerUpload").files?.[0];
+    if(!libFile) return;
+    await loadPdfJsFromLocalFiles(libFile, workerFile);
   });
 
   // Init
