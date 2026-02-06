@@ -635,10 +635,10 @@ table{
           <div class="row">
             <label>PDF.js fallback</label>
             <div>
-              <button class="secondary" type="button" onclick="triggerPdfJsUpload()">Load PDF.js files</button>
+              <button class="secondary" type="button" onclick="triggerPdfJsUpload()">Load PDF.js library</button>
               <input id="pdfJsLibUpload" type="file" accept=".js,application/javascript" class="hidden" />
               <input id="pdfJsWorkerUpload" type="file" accept=".js,application/javascript" class="hidden" />
-              <div class="hint">If network CDNs are blocked, choose a local <code>pdf.min.js</code> file (and optional <code>pdf.worker.min.js</code>).</div>
+              <div class="hint">If network CDNs are blocked, choose <code>pdf.min.js</code> here (not your order PDF). You can also add <code>pdf.worker.min.js</code>.</div>
             </div>
           </div>
           <div id="amazonPdfSummary" class="uploadSummary hidden"></div>
@@ -856,6 +856,7 @@ table{
   let activeOrderId = null;
   let orderItems = [];
   let amazonPdfPreview = { items: [], orderNumber: "", orderPlaced: "" };
+  let pendingAmazonPdfFile = null;
 
   const PDFJS_CDN_URLS = [
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js",
@@ -1926,6 +1927,14 @@ table{
     return lines;
   }
 
+  async function parseAmazonPdfFile(file){
+    const lines = await extractPdfLines(file);
+    if(lines.length === 0) return false;
+    amazonPdfPreview = parseAmazonOrderLines(lines);
+    renderAmazonPdfPreview();
+    return true;
+  }
+
   function parseAmazonOrderLines(lines){
     const items = [];
     let orderNumber = "";
@@ -2047,15 +2056,16 @@ table{
     if(!file) return;
     if(!await ensurePdfLib()){
       event.target.value = "";
+      pendingAmazonPdfFile = file;
+      $("amazonPdfSummary").classList.remove("hidden");
+      $("amazonPdfSummary").textContent = "PDF.js is not loaded. Use the PDF.js fallback, then we will retry parsing.";
       return;
     }
     $("amazonPdfAddButton").disabled = true;
     $("amazonPdfSummary").classList.remove("hidden");
     $("amazonPdfSummary").textContent = "Parsing PDF…";
     try{
-      const lines = await extractPdfLines(file);
-      amazonPdfPreview = parseAmazonOrderLines(lines);
-      renderAmazonPdfPreview();
+      await parseAmazonPdfFile(file);
     }catch{
       amazonPdfPreview = { items: [], orderNumber: "", orderPlaced: "" };
       $("amazonPdfSummary").classList.remove("hidden");
@@ -2073,6 +2083,19 @@ table{
       alert("Unable to load the PDF.js files you selected.");
     }else{
       alert("PDF.js loaded from local files. You can now upload an Amazon order PDF.");
+      if(pendingAmazonPdfFile){
+        $("amazonPdfSummary").classList.remove("hidden");
+        $("amazonPdfSummary").textContent = "Parsing PDF…";
+        try{
+          await parseAmazonPdfFile(pendingAmazonPdfFile);
+        }catch{
+          amazonPdfPreview = { items: [], orderNumber: "", orderPlaced: "" };
+          $("amazonPdfSummary").classList.remove("hidden");
+          $("amazonPdfSummary").textContent = "Unable to parse that PDF. Please try another Amazon order summary.";
+          $("amazonPdfList").classList.add("hidden");
+        }
+        pendingAmazonPdfFile = null;
+      }
     }
   });
 
