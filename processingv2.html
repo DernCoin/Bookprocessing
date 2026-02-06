@@ -280,8 +280,8 @@ table{
 
   .bookplateLabel{
     position: relative;
-    width: 3in;
-    height: 3.75in;
+    width: 3.75in;
+    height: 3in;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -301,7 +301,8 @@ table{
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: fill;
+    display: block;
     pointer-events: none;
   }
 
@@ -338,6 +339,10 @@ table{
     body.print-bookplates .bookplatePrintPanel{ display:block !important; }
     body:not(.print-bookplates) .panel:not(.printpanel){ display:none !important; }
     .printpanel h2{ display:none !important; }
+    body.print-bookplates{
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
     .receipt{
       border:none;
       border-radius:0;
@@ -359,7 +364,7 @@ table{
 
   @page bookplates{
     size: letter;
-    margin: 0.2in;
+    margin: 0;
   }
 </style>
 </head>
@@ -771,7 +776,9 @@ table{
   <div class="panel printpanel hidden bookplatePrintPanel" id="bookplatePreviewPanel">
     <h2>Bookplate Preview</h2>
     <div class="bookplateSheet" id="bookplateSheet"></div>
-    <div class="bookplatePreviewHint">Avery 6874 labels (3&quot; x 3 3/4&quot;), 2 columns × 3 rows.</div>
+    <div class="bookplatePreviewHint">
+      Avery 6874 labels (3&quot; x 3 3/4&quot;), 2 columns × 3 rows. For best print/PDF output, set margins to None and disable headers/footers in the print dialog.
+    </div>
   </div>
 
 </div>
@@ -1776,3 +1783,6 @@ table{
 </script>
 </body>
 </html>
+
+</html>
+
