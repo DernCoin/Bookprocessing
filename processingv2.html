@@ -438,7 +438,12 @@ table{
 
         <div class="row">
           <label for="title">Title</label>
-          <input id="title" type="text" placeholder="Title / Author" />
+          <input id="title" type="text" placeholder="Title" />
+        </div>
+
+        <div class="row">
+          <label for="author">Author</label>
+          <input id="author" type="text" placeholder="Author" />
         </div>
 
          <div class="row">
@@ -456,6 +461,18 @@ table{
             <option>YES</option>
           </select>
         </div>
+
+        <div id="fixDetailsRow" class="row hidden">
+          <label for="fixDetails">Fix needed</label>
+          <input id="fixDetails" type="text" placeholder="Describe what needs to be fixed" />
+        </div>
+
+        <div class="row">
+          <label for="notes">Notes</label>
+          <input id="notes" type="text" placeholder="General notes" />
+        </div>
+
+        <div id="newProcessingFields">
 
         <h3>Processing Status (YES/NO)</h3>
 
@@ -494,6 +511,27 @@ table{
         <div class="row">
           <label for="donated">Donated</label>
           <select id="donated"><option>NO</option><option>YES</option></select>
+        </div>
+
+        <div id="donatedByRow" class="row hidden">
+          <label for="donatedBy">Donated by</label>
+          <input id="donatedBy" type="text" placeholder="Donor name" />
+        </div>
+
+        <div class="row">
+          <label for="memorial">Memorial</label>
+          <select id="memorial"><option>NO</option><option>YES</option></select>
+        </div>
+
+        <div id="memorialNameRow" class="row hidden">
+          <label for="memorialName">In memory of</label>
+          <input id="memorialName" type="text" placeholder="Name being memorialized" />
+        </div>
+
+        <div id="memorialGivenByRow" class="row hidden">
+          <label for="memorialGivenBy">Given by</label>
+          <input id="memorialGivenBy" type="text" placeholder="Given by" />
+        </div>
         </div>
 
         <h3>Slip tracking</h3>
@@ -730,6 +768,9 @@ table{
          <div class="r-rule"></div>
 
         <div id="rTitleBlock" class="r-block hidden"></div>
+        <div id="rAuthorRow" class="r-line hidden">
+          <div class="r-left r-sub">Author</div><div class="r-right" id="rAuthor"></div>
+        </div>
 
         <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right" id="rWorkType"></div></div>
         <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right" id="rReceived"></div></div>
@@ -753,6 +794,26 @@ table{
 
         <div id="rDonatedRow" class="r-line hidden">
           <div class="r-left r-sub">DONATED</div><div class="r-right">YES</div>
+        </div>
+
+        <div id="rDonatedByRow" class="r-line hidden">
+          <div class="r-left r-sub">DONATED BY</div><div class="r-right" id="rDonatedBy"></div>
+        </div>
+
+        <div id="rMemorialNameRow" class="r-line hidden">
+          <div class="r-left r-sub">IN MEMORY OF</div><div class="r-right" id="rMemorialName"></div>
+        </div>
+
+        <div id="rMemorialGivenByRow" class="r-line hidden">
+          <div class="r-left r-sub">GIVEN BY</div><div class="r-right" id="rMemorialGivenBy"></div>
+        </div>
+
+        <div id="rFixDetailsRow" class="r-line hidden">
+          <div class="r-left r-sub">FIX NEEDED</div><div class="r-right" id="rFixDetails"></div>
+        </div>
+
+        <div id="rNotesRow" class="r-line hidden">
+          <div class="r-left r-sub">NOTES</div><div class="r-right" id="rNotes"></div>
         </div>
 
         <div class="r-rule"></div>
@@ -848,7 +909,7 @@ table{
 
   function isSpecial(it){
     // Special-handling triggers: hold OR adopted OR donated
-    return hasHold(it) || hasAdopted(it) || it.donated === "YES";
+    return hasHold(it) || hasAdopted(it) || it.donated === "YES" || it.memorial === "YES";
   }
 
   function formatMoney(v){
@@ -1081,6 +1142,7 @@ table{
     if(hasHold(it)){ score += 60; breakdown.push("hold+60"); }
     if(hasAdopted(it)){ score += 35; breakdown.push("adopted+35"); }
     if(isGeneralFix(it)){ score += 25; breakdown.push("generalFix+25"); }
+    if(it.received === "YES"){ score += 1; breakdown.push("received+1"); }
 
     // Bookplate avoidance helper: if adopted and bookplate NOT printed, add pressure.
     if(hasAdopted(it) && (it.bookplate || "NO") === "NO"){
@@ -1128,17 +1190,24 @@ table{
       id: activeId || uid(),
       barcode: $("barcode").value.trim(),
       title: $("title").value.trim(),
+      author: $("author").value.trim(),
 
       workType: $("workType").value,
       received: $("received").value,
       cataloged: $("cataloged").value,
       spine: $("spine").value,
       covered: $("covered").value,
+      fixDetails: $("fixDetails").value.trim(),
+      notes: $("notes").value.trim(),
 
       holdName: $("holdName").value.trim(),
       adoptedAmt: $("adoptedAmt").value,
       bookplate: $("bookplate").value,
       donated: $("donated").value,
+      donatedBy: $("donatedBy").value.trim(),
+      memorial: $("memorial").value,
+      memorialName: $("memorialName").value.trim(),
+      memorialGivenBy: $("memorialGivenBy").value.trim(),
 
       slipPrinted: ($("slipPrinted").value || "NO"),
       printedAt: ($("printedAt").value || ""),
@@ -1154,21 +1223,29 @@ table{
 
     $("barcode").value = it.barcode || "";
     $("title").value = it.title || "";
+    $("author").value = it.author || "";
 
     $("workType").value = it.workType || "NEW";
     $("received").value = it.received || "NO";
     $("cataloged").value = it.cataloged || "NO";
     $("spine").value = it.spine || "NO";
     $("covered").value = it.covered || "NO";
+    $("fixDetails").value = it.fixDetails || "";
+    $("notes").value = it.notes || "";
 
     $("holdName").value = it.holdName || "";
     $("adoptedAmt").value = it.adoptedAmt ?? "";
     $("bookplate").value = it.bookplate || "NO";
     $("donated").value = it.donated || "NO";
+    $("donatedBy").value = it.donatedBy || "";
+    $("memorial").value = it.memorial || "NO";
+    $("memorialName").value = it.memorialName || "";
+    $("memorialGivenBy").value = it.memorialGivenBy || "";
 
     $("slipPrinted").value = it.slipPrinted || "NO";
     $("printedAt").value = it.printedAt || "";
 
+    updateConditionalFields();
     syncReceipt();
   }
 
@@ -1176,23 +1253,45 @@ table{
     activeId = null;
     $("barcode").value = "";
     $("title").value = "";
+    $("author").value = "";
 
     $("workType").value = "NEW";
     $("received").value = "NO";
     $("cataloged").value = "NO";
     $("spine").value = "NO";
     $("covered").value = "NO";
+    $("fixDetails").value = "";
+    $("notes").value = "";
 
     $("holdName").value = "";
     $("adoptedAmt").value = "";
     $("bookplate").value = "NO";
     $("donated").value = "NO";
+    $("donatedBy").value = "";
+    $("memorial").value = "NO";
+    $("memorialName").value = "";
+    $("memorialGivenBy").value = "";
 
     $("slipPrinted").value = "NO";
     $("printedAt").value = "";
 
+    updateConditionalFields();
     syncReceipt();
     $("scan").focus();
+  }
+
+
+  function updateConditionalFields(){
+    const isFix = $("workType").value === "FIX";
+    $("newProcessingFields").classList.toggle("hidden", isFix);
+    $("fixDetailsRow").classList.toggle("hidden", !isFix);
+
+    const donated = $("donated").value === "YES";
+    $("donatedByRow").classList.toggle("hidden", isFix || !donated);
+
+    const memorial = $("memorial").value === "YES";
+    $("memorialNameRow").classList.toggle("hidden", isFix || !memorial);
+    $("memorialGivenByRow").classList.toggle("hidden", isFix || !memorial);
   }
 
   // ----------------------------
@@ -1317,17 +1416,24 @@ table{
         id: orderItem.id,
         barcode: orderItem.barcode || generatedBarcode || "",
         title: orderItem.title || "",
+        author: "",
         received: "NO",
         cataloged: "NO",
         spine: "NO",
         covered: "NO",
+        fixDetails: "",
+        notes: "",
         holdName: "",
         adoptedAmt: "",
         bookplate: "NO",
         donated: "NO",
+        donatedBy: "",
+        memorial: "NO",
+        memorialName: "",
+        memorialGivenBy: "",
         slipPrinted: "NO",
         printedAt: "",
-        statusSig: ["NO","NO","NO","NO","NO"].join("|"),
+        statusSig: ["NEW","NO","NO","NO","NO","NO"].join("|"),
         statusChangedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1426,6 +1532,10 @@ table{
    $("rTitleBlock").textContent = t;
     $("rTitleBlock").classList.toggle("hidden", t.length === 0);
 
+    const author = (it.author || "").trim();
+    $("rAuthor").textContent = author;
+    $("rAuthorRow").classList.toggle("hidden", author.length === 0);
+
     $("rWorkType").textContent = isGeneralFix(it) ? "GENERAL FIX" : "NEW PROCESSING";
     $("rReceived").textContent = it.received;
     $("rCataloged").textContent = it.cataloged;
@@ -1445,6 +1555,25 @@ table{
     $("rBookplateRow").classList.toggle("hidden", adoptedTxt.length === 0);
 
     $("rDonatedRow").classList.toggle("hidden", it.donated !== "YES");
+
+    const donatedBy = (it.donatedBy || "").trim();
+    $("rDonatedBy").textContent = donatedBy;
+    $("rDonatedByRow").classList.toggle("hidden", it.donated !== "YES" || donatedBy.length === 0);
+
+    const memorialName = (it.memorialName || "").trim();
+    const memorialGivenBy = (it.memorialGivenBy || "").trim();
+    $("rMemorialName").textContent = memorialName;
+    $("rMemorialGivenBy").textContent = memorialGivenBy;
+    $("rMemorialNameRow").classList.toggle("hidden", it.memorial !== "YES" || memorialName.length === 0);
+    $("rMemorialGivenByRow").classList.toggle("hidden", it.memorial !== "YES" || memorialGivenBy.length === 0);
+
+    const fixDetails = (it.fixDetails || "").trim();
+    $("rFixDetails").textContent = fixDetails;
+    $("rFixDetailsRow").classList.toggle("hidden", fixDetails.length === 0);
+
+    const notes = (it.notes || "").trim();
+    $("rNotes").textContent = notes;
+    $("rNotesRow").classList.toggle("hidden", notes.length === 0);
 
     $("rBarcodeText").textContent = it.barcode || "";
     if(it.barcode){
@@ -1479,6 +1608,7 @@ table{
     if(q){
       items = items.filter(it =>
         (it.title || "").toLowerCase().includes(q) ||
+        (it.author || "").toLowerCase().includes(q) ||
         (it.barcode || "").toLowerCase().includes(q)
       );
     }
@@ -1531,6 +1661,7 @@ table{
       if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
       if(hasAdopted(it) && (it.bookplate || "NO") === "NO") flags.push(`<span class="pill warn">Bookplate NO</span>`);
       if(it.donated === "YES") flags.push(`<span class="pill">Donated</span>`);
+      if(it.memorial === "YES") flags.push(`<span class="pill">Memorial</span>`);
       if(it.orderNumber) flags.push(`<span class="pill">Order #${escapeHTML(it.orderNumber)}</span>`);
 
       const slip = (it.slipPrinted === "YES")
@@ -1549,7 +1680,7 @@ table{
           <div class="hint" title="${escapeHTML(breakdown)}">${escapeHTML(ageLabel)}</div>
         </td>
         <td>${done ? `<span class="pill done">YES</span>` : `<span class="pill no">NO</span>`}</td>
-        <td>${escapeHTML(it.title || "")}</td>
+        <td>${escapeHTML(it.title || "")}<div class="hint">${escapeHTML(it.author || "")}</div></td>
         <td class="mono">${escapeHTML(it.barcode || "")}</td>
         <td>${flags.join(" ")}</td>
         <td>${slip}<div class="hint" style="margin-top:4px;">${escapeHTML(it.printedAt || "")}</div></td>
@@ -1665,15 +1796,22 @@ table{
         id: uid(),
         barcode: bc,
         title: "",
+        author: "",
         workType: "NEW",
         received: "NO",
         cataloged: "NO",
         spine: "NO",
         covered: "NO",
+        fixDetails: "",
+        notes: "",
         holdName: "",
         adoptedAmt: "",
         bookplate: "NO",
         donated: "NO",
+        donatedBy: "",
+        memorial: "NO",
+        memorialName: "",
+        memorialGivenBy: "",
         slipPrinted: "NO",
         printedAt: "",
         statusSig: ["NEW","NO","NO","NO","NO","NO"].join("|"),
@@ -1690,9 +1828,14 @@ table{
   });
 
  // Live sync (receipt only)
- ["barcode","title","workType","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
+ ["barcode","title","author","workType","received","cataloged","spine","covered","fixDetails","notes","holdName","adoptedAmt","bookplate","donated","donatedBy","memorial","memorialName","memorialGivenBy"].forEach(id => {
     $(id).addEventListener("input", syncReceipt);
     $(id).addEventListener("change", syncReceipt);
+  });
+
+  ["workType","donated","memorial"].forEach(id => {
+    $(id).addEventListener("change", updateConditionalFields);
+    $(id).addEventListener("input", updateConditionalFields);
   });
 
   // Filters
@@ -1744,6 +1887,7 @@ table{
     renderTable();
     renderOrders();
     syncReceipt();
+    updateConditionalFields();
     renderSettings();
     renderBookplateBorders();
     clearBookplateForm();
