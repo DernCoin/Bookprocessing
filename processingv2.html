@@ -474,6 +474,21 @@ table{
           <select id="covered"><option>NO</option><option>YES</option></select>
         </div>
 
+        <div class="row">
+          <label for="minimalCovering">Minimal covering</label>
+          <input id="minimalCovering" type="checkbox" />
+        </div>
+
+        <div class="row">
+          <label for="paidPrice">Paid price</label>
+          <input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+        </div>
+
+        <div class="row">
+          <label for="retailPrice">Retail price</label>
+          <input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+        </div>
+
         <h3>Context</h3>
 
         <div class="row">
@@ -570,6 +585,14 @@ table{
           <label for="orderItemBarcode">Item barcode</label>
           <input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" />
         </div>
+        <div class="row">
+          <label for="orderItemPaidPrice">Paid price</label>
+          <input id="orderItemPaidPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="row">
+          <label for="orderItemRetailPrice">Retail price</label>
+          <input id="orderItemRetailPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+        </div>
         <div class="btnRow">
           <button class="secondary" onclick="addOrderItem()">Add item</button>
         </div>
@@ -579,6 +602,8 @@ table{
               <tr>
                 <th>Item</th>
                 <th>Barcode</th>
+                <th>Paid</th>
+                <th>Retail</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1073,8 +1098,9 @@ table{
   }
 
   function priorityScore(it){
-    // Importance + staleness.
-    // Only apply staleness when Received=YES and not done.
+    // Priority does not start until item is received.
+    if(it.received !== "YES") return { score: 0, breakdown: ["awaitingReceipt"] };
+
     let score = 0;
     const breakdown = [];
 
@@ -1134,6 +1160,9 @@ table{
       cataloged: $("cataloged").value,
       spine: $("spine").value,
       covered: $("covered").value,
+      minimalCovering: $("minimalCovering").checked,
+      paidPrice: $("paidPrice").value,
+      retailPrice: $("retailPrice").value,
 
       holdName: $("holdName").value.trim(),
       adoptedAmt: $("adoptedAmt").value,
@@ -1160,6 +1189,9 @@ table{
     $("cataloged").value = it.cataloged || "NO";
     $("spine").value = it.spine || "NO";
     $("covered").value = it.covered || "NO";
+    $("minimalCovering").checked = !!it.minimalCovering;
+    $("paidPrice").value = it.paidPrice ?? "";
+    $("retailPrice").value = it.retailPrice ?? "";
 
     $("holdName").value = it.holdName || "";
     $("adoptedAmt").value = it.adoptedAmt ?? "";
@@ -1182,6 +1214,9 @@ table{
     $("cataloged").value = "NO";
     $("spine").value = "NO";
     $("covered").value = "NO";
+    $("minimalCovering").checked = false;
+    $("paidPrice").value = "";
+    $("retailPrice").value = "";
 
     $("holdName").value = "";
     $("adoptedAmt").value = "";
@@ -1228,6 +1263,8 @@ table{
     $("orderNotes").value = "";
     $("orderItemTitle").value = "";
     $("orderItemBarcode").value = "";
+    $("orderItemPaidPrice").value = "";
+    $("orderItemRetailPrice").value = "";
     orderItems = [];
     renderOrderItems();
   }
@@ -1263,6 +1300,8 @@ table{
   function addOrderItem(){
     const title = $("orderItemTitle").value.trim();
     const barcode = $("orderItemBarcode").value.trim();
+    const paidPrice = $("orderItemPaidPrice").value;
+    const retailPrice = $("orderItemRetailPrice").value;
     if(!title && !barcode){
       alert("Enter an item title or barcode.");
       $("orderItemTitle").focus();
@@ -1271,10 +1310,14 @@ table{
     orderItems.push({
       id: uid(),
       title,
-      barcode
+      barcode,
+      paidPrice,
+      retailPrice
     });
     $("orderItemTitle").value = "";
     $("orderItemBarcode").value = "";
+    $("orderItemPaidPrice").value = "";
+    $("orderItemRetailPrice").value = "";
     renderOrderItems();
   }
 
@@ -1291,6 +1334,8 @@ table{
       tr.innerHTML = `
         <td>${escapeHTML(item.title || "")}</td>
         <td class="mono">${escapeHTML(item.barcode || "")}</td>
+        <td class="mono">${escapeHTML(formatMoney(item.paidPrice))}</td>
+        <td class="mono">${escapeHTML(formatMoney(item.retailPrice))}</td>
         <td>
           <div class="actions">
             <button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button>
@@ -1321,6 +1366,9 @@ table{
         cataloged: "NO",
         spine: "NO",
         covered: "NO",
+        minimalCovering: false,
+        paidPrice: orderItem.paidPrice || "",
+        retailPrice: orderItem.retailPrice || "",
         holdName: "",
         adoptedAmt: "",
         bookplate: "NO",
@@ -1336,6 +1384,8 @@ table{
       base.barcode = orderItem.barcode || base.barcode || "";
       base.orderId = order.id;
       base.orderNumber = order.orderNumber;
+      base.paidPrice = orderItem.paidPrice ?? base.paidPrice ?? "";
+      base.retailPrice = orderItem.retailPrice ?? base.retailPrice ?? "";
       base.updatedAt = new Date().toISOString();
 
       if(existing){
@@ -1372,6 +1422,11 @@ table{
     // Determine statusChangedAt (only if processing status signature changes)
     const newSig = statusSignature(it);
     const prevSig = prev?.statusSig ?? statusSignature(prev || it);
+
+    if(prev){
+      it.orderId = prev.orderId;
+      it.orderNumber = prev.orderNumber;
+    }
 
     if(!prev){
       it.statusSig = newSig;
@@ -1531,6 +1586,9 @@ table{
       if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
       if(hasAdopted(it) && (it.bookplate || "NO") === "NO") flags.push(`<span class="pill warn">Bookplate NO</span>`);
       if(it.donated === "YES") flags.push(`<span class="pill">Donated</span>`);
+      if(it.minimalCovering) flags.push(`<span class="pill">Minimal cover</span>`);
+      if(formatMoney(it.paidPrice)) flags.push(`<span class="pill">Paid ${escapeHTML(formatMoney(it.paidPrice))}</span>`);
+      if(formatMoney(it.retailPrice)) flags.push(`<span class="pill">Retail ${escapeHTML(formatMoney(it.retailPrice))}</span>`);
       if(it.orderNumber) flags.push(`<span class="pill">Order #${escapeHTML(it.orderNumber)}</span>`);
 
       const slip = (it.slipPrinted === "YES")
@@ -1670,6 +1728,9 @@ table{
         cataloged: "NO",
         spine: "NO",
         covered: "NO",
+        minimalCovering: false,
+        paidPrice: "",
+        retailPrice: "",
         holdName: "",
         adoptedAmt: "",
         bookplate: "NO",
@@ -1690,7 +1751,7 @@ table{
   });
 
  // Live sync (receipt only)
- ["barcode","title","workType","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
+ ["barcode","title","workType","received","cataloged","spine","covered","minimalCovering","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
     $(id).addEventListener("input", syncReceipt);
     $(id).addEventListener("change", syncReceipt);
   });
