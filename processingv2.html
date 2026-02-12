@@ -438,7 +438,12 @@ table{
 
         <div class="row">
           <label for="title">Title</label>
-          <input id="title" type="text" placeholder="Title / Author" />
+          <input id="title" type="text" placeholder="Title" />
+        </div>
+
+        <div class="row">
+          <label for="author">Author</label>
+          <input id="author" type="text" placeholder="Author" />
         </div>
 
          <div class="row">
@@ -449,7 +454,7 @@ table{
           </select>
         </div>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="received">Received</label>
           <select id="received">
             <option>NO</option>
@@ -457,43 +462,68 @@ table{
           </select>
         </div>
 
-        <h3>Processing Status (YES/NO)</h3>
+        <h3 class="generalFixHide">Processing Status (YES/NO)</h3>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="cataloged">Cataloged</label>
           <select id="cataloged"><option>NO</option><option>YES</option></select>
         </div>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="spine">Spine label</label>
           <select id="spine"><option>NO</option><option>YES</option></select>
         </div>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="covered">Covered</label>
           <select id="covered"><option>NO</option><option>YES</option></select>
         </div>
 
-        <h3>Context</h3>
+        <h3 class="generalFixHide">Context</h3>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="holdName">Hold for</label>
           <input id="holdName" type="text" placeholder="Name (blank = no hold)" />
         </div>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="adoptedAmt">Adopted $</label>
           <input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" />
         </div>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="bookplate">Bookplate printed</label>
           <select id="bookplate"><option>NO</option><option>YES</option></select>
         </div>
 
-        <div class="row">
+        <div class="row generalFixHide">
           <label for="donated">Donated</label>
-          <select id="donated"><option>NO</option><option>YES</option></select>
+          <input id="donated" type="text" placeholder="Donor name (blank = no donation)" />
+        </div>
+
+        <div class="row generalFixHide">
+          <label for="memorial">Memorial</label>
+          <input id="memorial" type="text" placeholder="In memory/honor of" />
+        </div>
+
+        <div class="row generalFixHide">
+          <label for="itemNotes">Notes</label>
+          <input id="itemNotes" type="text" placeholder="Item notes for slip" />
+        </div>
+
+        <div class="row generalFixHide">
+          <label for="manualDone">Mark done manually</label>
+          <input id="manualDone" type="checkbox" />
+        </div>
+
+        <div id="fixDetailsRow" class="row hidden generalFixOnly">
+          <label for="fixDetails">Fixes needed</label>
+          <input id="fixDetails" type="text" placeholder="Describe required fixes" />
+        </div>
+
+        <div id="fixDoneRow" class="row hidden generalFixOnly">
+          <label for="fixDone">Fix done</label>
+          <input id="fixDone" type="checkbox" />
         </div>
 
         <h3>Slip tracking</h3>
@@ -567,8 +597,24 @@ table{
           <input id="orderItemTitle" type="text" placeholder="Item title" />
         </div>
         <div class="row">
+          <label for="orderItemAuthor">Item author</label>
+          <input id="orderItemAuthor" type="text" placeholder="Item author" />
+        </div>
+        <div class="row">
           <label for="orderItemBarcode">Item barcode</label>
           <input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" />
+        </div>
+        <div class="row">
+          <label for="orderItemDonation">Donation</label>
+          <input id="orderItemDonation" type="text" placeholder="Donor name (optional)" />
+        </div>
+        <div class="row">
+          <label for="orderItemMemorial">Memorial</label>
+          <input id="orderItemMemorial" type="text" placeholder="Memorial text (optional)" />
+        </div>
+        <div class="row">
+          <label for="orderItemNotes">Item notes</label>
+          <input id="orderItemNotes" type="text" placeholder="Notes to carry to processing" />
         </div>
         <div class="btnRow">
           <button class="secondary" onclick="addOrderItem()">Add item</button>
@@ -578,7 +624,11 @@ table{
             <thead>
               <tr>
                 <th>Item</th>
+                <th>Author</th>
                 <th>Barcode</th>
+                <th>Donation</th>
+                <th>Memorial</th>
+                <th>Notes</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -752,7 +802,15 @@ table{
         </div>
 
         <div id="rDonatedRow" class="r-line hidden">
-          <div class="r-left r-sub">DONATED</div><div class="r-right">YES</div>
+          <div class="r-left r-sub">DONATION</div><div class="r-right" id="rDonatedName"></div>
+        </div>
+
+        <div id="rMemorialRow" class="r-line hidden">
+          <div class="r-left r-sub">MEMORIAL</div><div class="r-right" id="rMemorial"></div>
+        </div>
+
+        <div id="rNotesRow" class="r-line hidden">
+          <div class="r-left r-sub">NOTES</div><div class="r-right" id="rNotes"></div>
         </div>
 
         <div class="r-rule"></div>
@@ -827,6 +885,8 @@ table{
   }
 
   function isDone(it){
+    if(it.manualDone === true) return true;
+    if(isGeneralFix(it) && it.fixDone === true) return true;
     return (it.received === "YES" &&
             it.cataloged === "YES" &&
             it.spine === "YES" &&
@@ -847,8 +907,16 @@ table{
   }
 
   function isSpecial(it){
-    // Special-handling triggers: hold OR adopted OR donated
-    return hasHold(it) || hasAdopted(it) || it.donated === "YES";
+    // Special-handling triggers: hold OR adopted OR donated OR memorial
+    return hasHold(it) || hasAdopted(it) || hasDonation(it) || hasMemorial(it);
+  }
+
+  function hasDonation(it){
+    return (it.donated || "").trim().length > 0;
+  }
+
+  function hasMemorial(it){
+    return (it.memorial || "").trim().length > 0;
   }
 
   function formatMoney(v){
@@ -1059,7 +1127,7 @@ table{
     // work type + processing statuses + received + bookplate printed (since adopted workflow is real work)
     return [
       it.workType, it.received, it.cataloged, it.spine, it.covered,
-      it.bookplate
+      it.bookplate, it.fixDone === true ? "YES" : "NO", it.manualDone === true ? "YES" : "NO"
     ].join("|");
   }
 
@@ -1092,9 +1160,12 @@ table{
       score += 20; breakdown.push("notCataloged+20");
     }
 
-    // Donation (small)
-    if(it.donated === "YES"){
-      score += 10; breakdown.push("donated+10");
+    // Donation and memorial priority boosts.
+    if(hasDonation(it)){
+      score += 15; breakdown.push("donation+15");
+    }
+    if(hasMemorial(it)){
+      score += 30; breakdown.push("memorial+30");
     }
 
     // Aging ramp
@@ -1120,6 +1191,13 @@ table{
     return "age0";
   }
 
+
+  function toggleWorkTypeFields(){
+    const isFix = $("workType").value === "FIX";
+    document.querySelectorAll(".generalFixHide").forEach(el => el.classList.toggle("hidden", isFix));
+    document.querySelectorAll(".generalFixOnly").forEach(el => el.classList.toggle("hidden", !isFix));
+  }
+
    // ----------------------------
   // Editor
   // ----------------------------
@@ -1128,17 +1206,23 @@ table{
       id: activeId || uid(),
       barcode: $("barcode").value.trim(),
       title: $("title").value.trim(),
+      author: $("author").value.trim(),
 
       workType: $("workType").value,
       received: $("received").value,
       cataloged: $("cataloged").value,
       spine: $("spine").value,
       covered: $("covered").value,
+      manualDone: $("manualDone").checked,
+      fixDetails: $("fixDetails").value.trim(),
+      fixDone: $("fixDone").checked,
 
       holdName: $("holdName").value.trim(),
       adoptedAmt: $("adoptedAmt").value,
       bookplate: $("bookplate").value,
-      donated: $("donated").value,
+      donated: $("donated").value.trim(),
+      memorial: $("memorial").value.trim(),
+      notes: $("itemNotes").value.trim(),
 
       slipPrinted: ($("slipPrinted").value || "NO"),
       printedAt: ($("printedAt").value || ""),
@@ -1154,44 +1238,58 @@ table{
 
     $("barcode").value = it.barcode || "";
     $("title").value = it.title || "";
+    $("author").value = it.author || "";
 
     $("workType").value = it.workType || "NEW";
     $("received").value = it.received || "NO";
     $("cataloged").value = it.cataloged || "NO";
     $("spine").value = it.spine || "NO";
     $("covered").value = it.covered || "NO";
+    $("manualDone").checked = it.manualDone === true;
+    $("fixDetails").value = it.fixDetails || "";
+    $("fixDone").checked = it.fixDone === true;
 
     $("holdName").value = it.holdName || "";
     $("adoptedAmt").value = it.adoptedAmt ?? "";
     $("bookplate").value = it.bookplate || "NO";
-    $("donated").value = it.donated || "NO";
+    $("donated").value = it.donated || "";
+    $("memorial").value = it.memorial || "";
+    $("itemNotes").value = it.notes || "";
 
     $("slipPrinted").value = it.slipPrinted || "NO";
     $("printedAt").value = it.printedAt || "";
 
     syncReceipt();
+    toggleWorkTypeFields();
   }
 
   function clearEditor(){
     activeId = null;
     $("barcode").value = "";
     $("title").value = "";
+    $("author").value = "";
 
     $("workType").value = "NEW";
     $("received").value = "NO";
     $("cataloged").value = "NO";
     $("spine").value = "NO";
     $("covered").value = "NO";
+    $("manualDone").checked = false;
+    $("fixDetails").value = "";
+    $("fixDone").checked = false;
 
     $("holdName").value = "";
     $("adoptedAmt").value = "";
     $("bookplate").value = "NO";
-    $("donated").value = "NO";
+    $("donated").value = "";
+    $("memorial").value = "";
+    $("itemNotes").value = "";
 
     $("slipPrinted").value = "NO";
     $("printedAt").value = "";
 
     syncReceipt();
+    toggleWorkTypeFields();
     $("scan").focus();
   }
 
@@ -1227,7 +1325,11 @@ table{
     $("orderPlaced").value = "";
     $("orderNotes").value = "";
     $("orderItemTitle").value = "";
+    $("orderItemAuthor").value = "";
     $("orderItemBarcode").value = "";
+    $("orderItemDonation").value = "";
+    $("orderItemMemorial").value = "";
+    $("orderItemNotes").value = "";
     orderItems = [];
     renderOrderItems();
   }
@@ -1262,7 +1364,11 @@ table{
 
   function addOrderItem(){
     const title = $("orderItemTitle").value.trim();
+    const author = $("orderItemAuthor").value.trim();
     const barcode = $("orderItemBarcode").value.trim();
+    const donated = $("orderItemDonation").value.trim();
+    const memorial = $("orderItemMemorial").value.trim();
+    const notes = $("orderItemNotes").value.trim();
     if(!title && !barcode){
       alert("Enter an item title or barcode.");
       $("orderItemTitle").focus();
@@ -1271,10 +1377,18 @@ table{
     orderItems.push({
       id: uid(),
       title,
-      barcode
+      author,
+      barcode,
+      donated,
+      memorial,
+      notes
     });
     $("orderItemTitle").value = "";
+    $("orderItemAuthor").value = "";
     $("orderItemBarcode").value = "";
+    $("orderItemDonation").value = "";
+    $("orderItemMemorial").value = "";
+    $("orderItemNotes").value = "";
     renderOrderItems();
   }
 
@@ -1290,7 +1404,11 @@ table{
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHTML(item.title || "")}</td>
+        <td>${escapeHTML(item.author || "")}</td>
         <td class="mono">${escapeHTML(item.barcode || "")}</td>
+        <td>${escapeHTML(item.donated || "")}</td>
+        <td>${escapeHTML(item.memorial || "")}</td>
+        <td>${escapeHTML(item.notes || "")}</td>
         <td>
           <div class="actions">
             <button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button>
@@ -1317,23 +1435,34 @@ table{
         id: orderItem.id,
         barcode: orderItem.barcode || generatedBarcode || "",
         title: orderItem.title || "",
+        author: orderItem.author || "",
+        workType: "NEW",
         received: "NO",
         cataloged: "NO",
         spine: "NO",
         covered: "NO",
+        manualDone: false,
+        fixDetails: "",
+        fixDone: false,
         holdName: "",
         adoptedAmt: "",
         bookplate: "NO",
-        donated: "NO",
+        donated: "",
+        memorial: "",
+        notes: "",
         slipPrinted: "NO",
         printedAt: "",
-        statusSig: ["NO","NO","NO","NO","NO"].join("|"),
+        statusSig: ["NEW","NO","NO","NO","NO","NO","NO","NO"].join("|"),
         statusChangedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
       base.title = orderItem.title || base.title || "";
+      base.author = orderItem.author || base.author || "";
       base.barcode = orderItem.barcode || base.barcode || "";
+      base.donated = orderItem.donated || base.donated || "";
+      base.memorial = orderItem.memorial || base.memorial || "";
+      base.notes = orderItem.notes || base.notes || "";
       base.orderId = order.id;
       base.orderNumber = order.orderNumber;
       base.updatedAt = new Date().toISOString();
@@ -1423,14 +1552,22 @@ table{
     $("rSpecialTop").classList.toggle("hidden", !isSpecial(it));
 
     const t = (it.title || "").trim();
-   $("rTitleBlock").textContent = t;
-    $("rTitleBlock").classList.toggle("hidden", t.length === 0);
+    const author = (it.author || "").trim();
+    const titleLine = [t, author].filter(Boolean).join(" — ");
+   $("rTitleBlock").textContent = titleLine;
+    $("rTitleBlock").classList.toggle("hidden", titleLine.length === 0);
 
     $("rWorkType").textContent = isGeneralFix(it) ? "GENERAL FIX" : "NEW PROCESSING";
     $("rReceived").textContent = it.received;
     $("rCataloged").textContent = it.cataloged;
     $("rSpine").textContent = it.spine;
     $("rCovered").textContent = it.covered;
+
+    if(isGeneralFix(it)){
+      $("rCataloged").textContent = it.fixDone === true ? "YES" : "NO";
+      $("rSpine").textContent = "N/A";
+      $("rCovered").textContent = (it.fixDetails || "").trim() || "N/A";
+    }
 
     const hold = (it.holdName || "").trim();
     $("rHoldName").textContent = hold || "";
@@ -1444,7 +1581,17 @@ table{
     $("rBookplate").textContent = it.bookplate || "NO";
     $("rBookplateRow").classList.toggle("hidden", adoptedTxt.length === 0);
 
-    $("rDonatedRow").classList.toggle("hidden", it.donated !== "YES");
+    const donation = (it.donated || "").trim();
+    $("rDonatedName").textContent = donation;
+    $("rDonatedRow").classList.toggle("hidden", donation.length === 0);
+
+    const memorial = (it.memorial || "").trim();
+    $("rMemorial").textContent = memorial;
+    $("rMemorialRow").classList.toggle("hidden", memorial.length === 0);
+
+    const notes = (it.notes || "").trim();
+    $("rNotes").textContent = notes;
+    $("rNotesRow").classList.toggle("hidden", notes.length === 0);
 
     $("rBarcodeText").textContent = it.barcode || "";
     if(it.barcode){
@@ -1530,8 +1677,10 @@ table{
       if(hasHold(it)) flags.push(`<span class="pill">Hold</span>`);
       if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
       if(hasAdopted(it) && (it.bookplate || "NO") === "NO") flags.push(`<span class="pill warn">Bookplate NO</span>`);
-      if(it.donated === "YES") flags.push(`<span class="pill">Donated</span>`);
+      if(hasDonation(it)) flags.push(`<span class="pill">Donation</span>`);
+      if(hasMemorial(it)) flags.push(`<span class="pill">Memorial</span>`);
       if(it.orderNumber) flags.push(`<span class="pill">Order #${escapeHTML(it.orderNumber)}</span>`);
+      if(it.manualDone === true) flags.push(`<span class="pill done">Manual done</span>`);
 
       const slip = (it.slipPrinted === "YES")
         ? `<span class="pill yes">Printed</span>`
@@ -1549,7 +1698,7 @@ table{
           <div class="hint" title="${escapeHTML(breakdown)}">${escapeHTML(ageLabel)}</div>
         </td>
         <td>${done ? `<span class="pill done">YES</span>` : `<span class="pill no">NO</span>`}</td>
-        <td>${escapeHTML(it.title || "")}</td>
+        <td>${escapeHTML([it.title || "", it.author || ""].filter(Boolean).join(" — "))}</td>
         <td class="mono">${escapeHTML(it.barcode || "")}</td>
         <td>${flags.join(" ")}</td>
         <td>${slip}<div class="hint" style="margin-top:4px;">${escapeHTML(it.printedAt || "")}</div></td>
@@ -1642,8 +1791,27 @@ table{
 
  function normalizeImport(raw){
     const incoming = (raw && typeof raw === "object" && raw.data) ? raw.data : raw;
-    const items = Array.isArray(incoming?.items) ? incoming.items : [];
-    const orders = Array.isArray(incoming?.orders) ? incoming.orders : [];
+    const items = Array.isArray(incoming?.items) ? incoming.items.map(item => ({
+      ...item,
+      author: item.author || "",
+      donated: item.donated || "",
+      memorial: item.memorial || "",
+      notes: item.notes || "",
+      manualDone: item.manualDone === true,
+      fixDetails: item.fixDetails || "",
+      fixDone: item.fixDone === true,
+      workType: item.workType || "NEW"
+    })) : [];
+    const orders = Array.isArray(incoming?.orders) ? incoming.orders.map(order => ({
+      ...order,
+      items: Array.isArray(order.items) ? order.items.map(orderItem => ({
+        ...orderItem,
+        author: orderItem.author || "",
+        donated: orderItem.donated || "",
+        memorial: orderItem.memorial || "",
+        notes: orderItem.notes || ""
+      })) : []
+    })) : [];
     const bookplateBorders = Array.isArray(incoming?.bookplateBorders) ? incoming.bookplateBorders : [];
     return { items, orders, bookplateBorders };
   }
@@ -1665,18 +1833,24 @@ table{
         id: uid(),
         barcode: bc,
         title: "",
+        author: "",
         workType: "NEW",
         received: "NO",
         cataloged: "NO",
         spine: "NO",
         covered: "NO",
+        manualDone: false,
+        fixDetails: "",
+        fixDone: false,
         holdName: "",
         adoptedAmt: "",
         bookplate: "NO",
-        donated: "NO",
+        donated: "",
+        memorial: "",
+        notes: "",
         slipPrinted: "NO",
         printedAt: "",
-        statusSig: ["NEW","NO","NO","NO","NO","NO"].join("|"),
+        statusSig: ["NEW","NO","NO","NO","NO","NO","NO","NO"].join("|"),
         statusChangedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1690,10 +1864,12 @@ table{
   });
 
  // Live sync (receipt only)
- ["barcode","title","workType","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated"].forEach(id => {
+ ["barcode","title","author","workType","received","cataloged","spine","covered","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone"].forEach(id => {
     $(id).addEventListener("input", syncReceipt);
     $(id).addEventListener("change", syncReceipt);
   });
+
+  $("workType").addEventListener("change", toggleWorkTypeFields);
 
   // Filters
   ["search","filterSpecial","showDone","viewMode"].forEach(id => {
@@ -1741,6 +1917,7 @@ table{
  (function init(){
     clearEditor();
     clearOrder();
+    toggleWorkTypeFields();
     renderTable();
     renderOrders();
     syncReceipt();
