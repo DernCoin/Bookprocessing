@@ -261,6 +261,22 @@ table{
     font-weight:700;
  }
 
+  .receiptStack{
+    display:grid;
+    gap:12px;
+    justify-content:center;
+  }
+
+  .receiptStack .receipt{
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .receiptStack .receipt:last-child{
+    break-after: auto;
+    page-break-after: auto;
+  }
+
   /* ===== Bookplate styles ===== */
   .bookplateSheet{
     width: 8.5in;
@@ -337,7 +353,10 @@ table{
     body{ margin:0; background:#fff; }
     body.print-bookplates .panel{ display:none !important; }
     body.print-bookplates .bookplatePrintPanel{ display:block !important; }
+    body.print-order-slips .panel{ display:none !important; }
+    body.print-order-slips .orderSlipPrintPanel{ display:block !important; }
     body:not(.print-bookplates) .panel:not(.printpanel){ display:none !important; }
+    body.print-order-slips .printpanel:not(.orderSlipPrintPanel){ display:none !important; }
     .printpanel h2{ display:none !important; }
     body.print-bookplates{
       -webkit-print-color-adjust: exact;
@@ -866,6 +885,11 @@ table{
     <div class="bookplatePreviewHint">
       Avery 6874 labels (3&quot; x 3 3/4&quot;), 2 columns × 3 rows. For best print/PDF output, set margins to None and disable headers/footers in the print dialog.
     </div>
+  </div>
+
+  <div class="panel printpanel hidden orderSlipPrintPanel" id="orderSlipPrintPanel">
+    <h2>Order Slips</h2>
+    <div id="orderSlipPrintList" class="receiptStack"></div>
   </div>
 
 </div>
@@ -1606,6 +1630,103 @@ table{
     window.print();
   }
 
+  function slipHTML(it, barcodeId){
+    const titleLine = [it.title || "", it.author || ""].filter(Boolean).join(" — ");
+    const adoptedTxt = formatMoney(it.adoptedAmt);
+    const paidPrice = formatMoney(it.paidPrice);
+    const retailPrice = formatMoney(it.retailPrice);
+    const isFix = isGeneralFix(it);
+    const receivedTxt = it.received || "NO";
+    const catalogedTxt = isFix ? (it.fixDone === true ? "YES" : "NO") : (it.cataloged || "NO");
+    const spineTxt = isFix ? "N/A" : (it.spine || "NO");
+    const coveredTxt = isFix ? ((it.fixDetails || "").trim() || "N/A") : (it.covered || "NO");
+    const minimalCoverTxt = isFix ? "" : (it.minimalCover === true ? "✓" : "");
+    const hold = (it.holdName || "").trim();
+    const donated = (it.donated || "").trim();
+    const memorial = (it.memorial || "").trim();
+    const notes = (it.notes || "").trim();
+    return `
+      <div class="receipt">
+        <div class="r-special${isSpecial(it) ? "" : " hidden"}">⚠ SPECIAL HANDLING</div>
+        <div class="r-title">PROCESSING STATUS</div>
+        <div class="r-rule"></div>
+
+        <div class="r-block${titleLine ? "" : " hidden"}">${escapeHTML(titleLine)}</div>
+
+        <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right">${isFix ? "GENERAL FIX" : "NEW PROCESSING"}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right">${escapeHTML(receivedTxt)}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right">${escapeHTML(catalogedTxt)}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Spine label</div><div class="r-right">${escapeHTML(spineTxt)}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Covered</div><div class="r-right">${escapeHTML(coveredTxt)}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Minimal cover</div><div class="r-right">${minimalCoverTxt}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Paid price</div><div class="r-right">${escapeHTML(paidPrice)}</div></div>
+        <div class="r-line"><div class="r-left r-sub">Retail price</div><div class="r-right">${escapeHTML(retailPrice)}</div></div>
+
+        <div class="r-rule"></div>
+        <div class="r-line${hold ? "" : " hidden"}"><div class="r-left r-sub">HOLD</div><div class="r-right">${escapeHTML(hold)}</div></div>
+        <div class="r-line${adoptedTxt ? "" : " hidden"}"><div class="r-left r-sub">ADOPTED</div><div class="r-right">${escapeHTML(adoptedTxt)}</div></div>
+        <div class="r-line${adoptedTxt ? "" : " hidden"}"><div class="r-left r-sub">BOOKPLATE</div><div class="r-right">${escapeHTML(it.bookplate || "NO")}</div></div>
+        <div class="r-line${donated ? "" : " hidden"}"><div class="r-left r-sub">DONATION</div><div class="r-right">${escapeHTML(donated)}</div></div>
+        <div class="r-line${memorial ? "" : " hidden"}"><div class="r-left r-sub">MEMORIAL</div><div class="r-right">${escapeHTML(memorial)}</div></div>
+        <div class="r-line${notes ? "" : " hidden"}"><div class="r-left r-sub">NOTES</div><div class="r-right">${escapeHTML(notes)}</div></div>
+
+        <div class="r-rule"></div>
+        <svg id="${barcodeId}"></svg>
+        <div class="r-line"><div class="r-left r-sub">Barcode</div><div class="r-right">${escapeHTML(it.barcode || "")}</div></div>
+
+        <div class="r-rule"></div>
+        <div class="r-line"><div class="r-left r-sub">Printed for</div><div class="r-right">${escapeHTML(it.printedAt || "")}</div></div>
+      </div>
+    `;
+  }
+
+  function printOrderSlips(orderId){
+    const order = data.orders.find(x => x.id === orderId);
+    if(!order) return;
+    const orderNumber = order.orderNumber || order.title || "this order";
+    const orderIdSet = new Set((order.items || []).map(item => item.id));
+    const orderProcessingItems = data.items.filter(item => item.orderId === orderId || orderIdSet.has(item.id));
+
+    if(orderProcessingItems.length === 0){
+      alert(`No saved processing items found for order ${orderNumber}. Save the order first.`);
+      return;
+    }
+
+    const stamp = nowStamp();
+    orderProcessingItems.forEach(item => {
+      item.slipPrinted = "YES";
+      item.printedAt = stamp;
+      item.updatedAt = new Date().toISOString();
+    });
+    persist();
+
+    const list = $("orderSlipPrintList");
+    list.innerHTML = "";
+
+    orderProcessingItems.forEach((item, index) => {
+      const wrapper = document.createElement("div");
+      const barcodeId = `orderBarcodeSvg_${index}`;
+      wrapper.innerHTML = slipHTML(item, barcodeId);
+      list.appendChild(wrapper.firstElementChild);
+      if(item.barcode){
+        try{
+          JsBarcode(`#${barcodeId}`, item.barcode, {
+            format:"CODE128",
+            width: 2,
+            height: 44,
+            displayValue: false,
+            margin: 0
+          });
+        }catch{}
+      }
+    });
+
+    document.body.classList.add("print-order-slips");
+    window.print();
+    document.body.classList.remove("print-order-slips");
+    list.innerHTML = "";
+  }
+
   // ----------------------------
   // Slip render
   // ----------------------------
@@ -1810,6 +1931,7 @@ table{
         <td>
           <div class="actions">
             <button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button>
+            <button class="smallBtn secondary" onclick="printOrderSlips('${order.id}')">Print slips</button>
           </div>
         </td>
       `;
