@@ -357,6 +357,17 @@ table{
     body.print-order-slips .orderSlipPrintPanel{ display:block !important; }
     body:not(.print-bookplates) .panel:not(.printpanel){ display:none !important; }
     body.print-order-slips .printpanel:not(.orderSlipPrintPanel){ display:none !important; }
+    body.print-order-slips #orderSlipPrintList{ display:block; }
+    body.print-order-slips #orderSlipPrintList .receipt{
+      break-after: page;
+      page-break-after: always;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    body.print-order-slips #orderSlipPrintList .receipt:last-child{
+      break-after: auto;
+      page-break-after: auto;
+    }
     .printpanel h2{ display:none !important; }
     body.print-bookplates{
       -webkit-print-color-adjust: exact;
