@@ -1700,31 +1700,82 @@ table{
     });
     persist();
 
-    const list = $("orderSlipPrintList");
-    list.innerHTML = "";
-
-    orderProcessingItems.forEach((item, index) => {
-      const wrapper = document.createElement("div");
+    const slipsHTML = orderProcessingItems.map((item, index) => {
       const barcodeId = `orderBarcodeSvg_${index}`;
-      wrapper.innerHTML = slipHTML(item, barcodeId);
-      list.appendChild(wrapper.firstElementChild);
-      if(item.barcode){
-        try{
-          JsBarcode(`#${barcodeId}`, item.barcode, {
-            format:"CODE128",
-            width: 2,
-            height: 44,
-            displayValue: false,
-            margin: 0
-          });
-        }catch{}
-      }
-    });
+      return slipHTML(item, barcodeId);
+    }).join("");
 
-    document.body.classList.add("print-order-slips");
-    window.print();
-    document.body.classList.remove("print-order-slips");
-    list.innerHTML = "";
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if(!printWindow){
+      alert("Unable to open print window. Please allow popups and try again.");
+      return;
+    }
+
+    const barcodeScript = orderProcessingItems.map((item, index) => {
+      if(!item.barcode) return "";
+      return `try{ JsBarcode("#orderBarcodeSvg_${index}", ${JSON.stringify(item.barcode)}, { format:"CODE128", width:2, height:44, displayValue:false, margin:0 }); }catch{}`;
+    }).join("\n    ");
+
+    const printDoc = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Order slips</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<style>
+  :root{ --paper: 80mm; }
+  body{ margin:0; background:#fff; font-family:"Courier New", Courier, monospace; }
+  .receiptStack{ width:var(--paper); margin:0 auto; }
+  .receipt{
+    width:var(--paper);
+    box-sizing:border-box;
+    padding:0;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.25;
+    break-after:page;
+    page-break-after:always;
+  }
+  .receipt:last-child{ break-after:auto; page-break-after:auto; }
+  .r-title{ text-align:center; font-size:18px; font-weight:900; letter-spacing:.4px; margin:2px 0 6px; }
+  .r-special{ text-align:center; font-size:16px; font-weight:900; margin:2px 0 6px; }
+  .r-rule{ border-top:1px dashed #000; margin:6px 0; }
+  .r-line{ display:flex; justify-content:space-between; gap:10px; margin:2px 0; }
+  .r-left{ flex:1; overflow-wrap:anywhere; }
+  .r-right{ white-space:nowrap; font-weight:900; }
+  .r-block{ margin-top:6px; font-weight:900; }
+  .r-sub{ font-weight:700; }
+  .hidden{ display:none !important; }
+
+  @page slip{ size:80mm auto; margin:4mm; }
+  @media print{
+    body{ margin:0; }
+    .receipt{ page:slip; }
+  }
+</style>
+</head>
+<body>
+  <div class="receiptStack">${slipsHTML}</div>
+<script>
+  window.addEventListener("load", () => {
+    ${barcodeScript}
+
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  });
+
+  window.addEventListener("afterprint", () => {
+    window.close();
+  });
+<\/script>
+</body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(printDoc);
+    printWindow.document.close();
   }
 
   // ----------------------------
