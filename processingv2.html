@@ -1721,10 +1721,15 @@ table{
       }
     });
 
+    const cleanupPrint = () => {
+      document.body.classList.remove("print-order-slips");
+      list.innerHTML = "";
+      window.removeEventListener("afterprint", cleanupPrint);
+    };
+
+    window.addEventListener("afterprint", cleanupPrint);
     document.body.classList.add("print-order-slips");
     window.print();
-    document.body.classList.remove("print-order-slips");
-    list.innerHTML = "";
   }
 
   // ----------------------------
