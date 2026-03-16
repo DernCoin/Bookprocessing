@@ -1479,7 +1479,7 @@ table{
   function renderOrderItems(){
     const tbody = $("orderItemsTable");
     tbody.innerHTML = "";
-    for(const item of orderItems){
+    for(const [index, item] of orderItems.entries()){
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHTML(item.title || "")}</td>
@@ -1492,6 +1492,7 @@ table{
         <td>${escapeHTML(item.notes || "")}</td>
         <td>
           <div class="actions">
+            <button class="smallBtn secondary" onclick="printOrderItemSlip('${item.id}', ${index})">Print slip</button>
             <button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button>
           </div>
         </td>
@@ -1736,6 +1737,75 @@ table{
     window.print();
   }
 
+  function printOrderItemSlip(orderItemId, fallbackIndex = 0){
+    const orderItem = orderItems.find(item => item.id === orderItemId);
+    if(!orderItem) return;
+
+    const orderNumber = $("orderNumber").value.trim() || "";
+    const stamp = nowStamp();
+    const barcode = (orderItem.barcode || "").trim() || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : "");
+    const processingItem = {
+      ...orderItem,
+      barcode,
+      workType: "NEW",
+      received: "NO",
+      cataloged: "NO",
+      spine: "NO",
+      covered: "NO",
+      minimalCover: false,
+      holdName: "",
+      adoptedAmt: "",
+      bookplate: "NO",
+      notes: orderItem.notes || "",
+      slipPrinted: "YES",
+      printedAt: stamp
+    };
+
+    orderItem.barcode = processingItem.barcode;
+    orderItem.slipPrinted = "YES";
+    orderItem.printedAt = stamp;
+
+    const matchingProcessingItem = data.items.find(item => item.id === orderItemId);
+    if(matchingProcessingItem){
+      matchingProcessingItem.barcode = processingItem.barcode;
+      matchingProcessingItem.slipPrinted = "YES";
+      matchingProcessingItem.printedAt = stamp;
+      matchingProcessingItem.updatedAt = new Date().toISOString();
+    }
+    persist();
+    renderOrderItems();
+
+    const list = $("orderSlipPrintList");
+    list.innerHTML = "";
+
+    const wrapper = document.createElement("div");
+    const barcodeId = `orderBarcodeSvg_single_${Date.now()}`;
+    wrapper.innerHTML = slipHTML(processingItem, barcodeId);
+    list.appendChild(wrapper.firstElementChild);
+
+    if(processingItem.barcode){
+      try{
+        JsBarcode(`#${barcodeId}`, processingItem.barcode, {
+          format:"CODE128",
+          width: 2,
+          height: 44,
+          displayValue: false,
+          margin: 0
+        });
+      }catch{}
+    }
+
+    const cleanupPrint = () => {
+      document.body.classList.remove("print-order-slips");
+      list.innerHTML = "";
+      window.removeEventListener("afterprint", cleanupPrint);
+    };
+
+    window.addEventListener("afterprint", cleanupPrint);
+    document.body.classList.add("print-order-slips");
+    window.print();
+  }
+
   // ----------------------------
   // Slip render
   // ----------------------------
@@ -1940,7 +2010,6 @@ table{
         <td>
           <div class="actions">
             <button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button>
-            <button class="smallBtn secondary" onclick="printOrderSlips('${order.id}')">Print slips</button>
           </div>
         </td>
       `;
