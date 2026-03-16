@@ -1742,6 +1742,7 @@ table{
     if(!orderItem) return;
 
     const orderNumber = $("orderNumber").value.trim() || "";
+    const stamp = nowStamp();
     const barcode = (orderItem.barcode || "").trim() || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : "");
     const processingItem = {
       ...orderItem,
@@ -1756,8 +1757,23 @@ table{
       adoptedAmt: "",
       bookplate: "NO",
       notes: orderItem.notes || "",
-      printedAt: nowStamp()
+      slipPrinted: "YES",
+      printedAt: stamp
     };
+
+    orderItem.barcode = processingItem.barcode;
+    orderItem.slipPrinted = "YES";
+    orderItem.printedAt = stamp;
+
+    const matchingProcessingItem = data.items.find(item => item.id === orderItemId);
+    if(matchingProcessingItem){
+      matchingProcessingItem.barcode = processingItem.barcode;
+      matchingProcessingItem.slipPrinted = "YES";
+      matchingProcessingItem.printedAt = stamp;
+      matchingProcessingItem.updatedAt = new Date().toISOString();
+    }
+    persist();
+    renderOrderItems();
 
     const list = $("orderSlipPrintList");
     list.innerHTML = "";
