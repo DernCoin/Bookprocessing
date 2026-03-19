@@ -220,8 +220,10 @@ Changelog - Book Processing Dashboard v2.3
   .bookplatePreviewHint{ margin-top:10px; color:var(--muted); font-size:12px; }
 
   @media print{
-    @page{ margin:0; }
+    @page{ size:80mm auto; margin:0; }
     body{ margin:0; background:#fff; }
+    body.print-slip .app{ display:block; padding:0; max-width:none; }
+    body.print-slip .app > .panel{ display:none !important; }
     body.print-slip *{ visibility:hidden !important; }
     body.print-slip #slipPreviewPanel,
     body.print-slip #slipPreviewPanel *{ visibility:visible !important; }
@@ -652,7 +654,7 @@ Changelog - Book Processing Dashboard v2.3
     </div>
   </div>
 
-  <div class="panel printpanel" id="slipPreviewPanel">
+  <div class="panel printpanel hidden" id="slipPreviewPanel">
     <h2>Slip Preview</h2>
     <div class="receiptWrap">
       <div class="receipt" id="receipt">
@@ -1352,7 +1354,13 @@ function buildBookplateLines(state){ const templateLine = bookplateTemplates[sta
 function renderBookplateSheet(){ const sheet = $("bookplateSheet"); const state = getBookplateState(); const lines = buildBookplateLines(state); const selectedBorder = (data.bookplateBorders || []).find(border => border.id === state.borderId); sheet.style.setProperty("--plate-padding", `${state.padding}px`); sheet.innerHTML = ""; for(let i = 1; i <= 6; i += 1){ const label = document.createElement("div"); label.className = "bookplateLabel"; const shouldFill = state.fillSheet ? i >= state.startPos : i === state.startPos; if(shouldFill){ if(state.borderOn && selectedBorder){ const img = document.createElement("img"); img.className = "bookplateBorder"; img.alt = "Bookplate border"; img.src = selectedBorder.dataUrl; label.appendChild(img); } const content = document.createElement("div"); content.className = "bookplateContent"; lines.forEach((line, index) => { const div = document.createElement("div"); div.className = `bookplateLine${index === 0 ? ' template' : ''}`; div.textContent = line; content.appendChild(div); }); label.appendChild(content); } else label.classList.add("empty"); sheet.appendChild(label); } }
 function clearBookplateForm(){ $("bookplateTemplate").value = "donated"; $("bookplateLine1").value = ""; $("bookplateLine2").value = ""; $("bookplateFillSheet").checked = true; $("bookplateStartPos").value = "1"; $("bookplateBorderOn").checked = true; $("bookplatePadding").value = "16"; $("bookplatePaddingValue").textContent = "16"; $("bookplateBorderSelect").value = (data.bookplateBorders || [])[0]?.id || ""; updateBookplateBorderPreview(); renderBookplateSheet(); }
 function printBookplates(){ runPrintMode("print-bookplates", () => renderBookplateSheet(), () => focusScanInput()); }
-function setActiveTab(tab){ activeTab = tab; document.querySelectorAll(".tabButton").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tab)); document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`)); $("slipPreviewPanel").classList.toggle("hidden", tab === "bookplates"); $("bookplatePreviewPanel").classList.toggle("hidden", tab !== "bookplates"); }
+function setActiveTab(tab){
+  activeTab = tab;
+  document.querySelectorAll(".tabButton").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tab));
+  document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`));
+  $("slipPreviewPanel").classList.add("hidden");
+  $("bookplatePreviewPanel").classList.toggle("hidden", tab !== "bookplates");
+}
 function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); }
 
 $("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); $("title").focus(); });
