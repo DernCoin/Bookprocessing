@@ -1,52 +1,73 @@
 <!doctype html>
+<!--
+Changelog - Book Processing Dashboard v2.1
+- Upgraded the Processing tab into a true operations dashboard with summary cards, advanced filters, queue view, bulk actions, session mode, reporting, saved presets, and receiving session mode.
+- Added derived workflow stages, next-step logic, completion states, timestamps, activity timeline, assignment/location handoff fields, exceptions, duplicate detection, and material types.
+- Expanded inline quick actions and bulk tools without removing the existing editor, receipt/slip printing, order syncing, bookplate printing, or localStorage import/export workflow.
+- Added safe schema migration/versioning so older data continues to load and receives new fields only when needed.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Book Processing Dashboard v2.0 (Priority)</title>
-
+<title>Book Processing Dashboard v2.1 (Operations)</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-
 <style>
   :root{
     --paper: 80mm;
-    --border:#ddd;
-    --bg:#fafafa;
+    --border:#d7d7d7;
+    --bg:#f7f7f5;
+    --panel:#ffffff;
     --muted:#666;
+    --ink:#111;
+    --soft:#f3f3f0;
+    --accent:#243447;
+    --danger:#a82020;
+    --warn:#8a6110;
+    --good:#0b6;
+    --info:#3d5a80;
   }
 
+  *{ box-sizing:border-box; }
   body{
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    background: var(--bg);
-    margin: 18px;
-    color:#111;
+    background:var(--bg);
+    margin:18px;
+    color:var(--ink);
   }
+  h1{ font-size:18px; margin:0 0 10px; }
+  h2{ font-size:14px; margin:0 0 10px; color:#222; }
+  h3{ font-size:13px; margin:12px 0 8px; color:#222; }
+  h4{ font-size:12px; margin:0 0 6px; color:#333; text-transform:uppercase; letter-spacing:.4px; }
+  label{ font-size:13px; }
 
   .app{
     display:grid;
-    grid-template-columns: 1fr 420px;
+    grid-template-columns:minmax(0,1fr) 440px;
     gap:16px;
     align-items:start;
   }
-
   .panel{
-    background:#fff;
+    background:var(--panel);
     border:1px solid var(--border);
-    border-radius:10px;
+    border-radius:12px;
     padding:14px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
   }
-
-  h1{font-size:18px;margin:0 0 10px;}
-  h2{font-size:14px;margin:10px 0;color:#222;}
-  h3{font-size:13px;margin:12px 0 8px;color:#222;}
-
+  .section{
+    border:1px solid #ebebeb;
+    border-radius:12px;
+    padding:12px;
+    background:#fcfcfb;
+    margin-bottom:12px;
+  }
+  .section.tight{ padding:10px; }
   .tabs{
     display:flex;
     gap:8px;
     margin-bottom:12px;
+    flex-wrap:wrap;
   }
-
   .tabButton{
     padding:8px 12px;
     border-radius:999px;
@@ -56,53 +77,36 @@
     font-weight:700;
     cursor:pointer;
   }
-
-  .tabButton.active{
-    background:#111;
-    color:#fff;
-    border-color:#111;
-  }
-
+  .tabButton.active{ background:#111; color:#fff; border-color:#111; }
   .tabPanel{ display:none; }
   .tabPanel.active{ display:block; }
-
-  .section{
-    border:1px solid #eee;
-    border-radius:12px;
-    padding:12px;
-    background:#fcfcfc;
-    margin-bottom:12px;
-  }
-
   .row{
     display:grid;
-    grid-template-columns: 150px 1fr;
+    grid-template-columns:160px 1fr;
     gap:10px;
     margin-bottom:10px;
     align-items:center;
   }
-
-  input[type="text"], input[type="number"], select{
+  .rowTop{ align-items:start; }
+  .stack{ display:grid; gap:10px; }
+  .inlineGrid2, .inlineGrid3, .inlineGrid4{
+    display:grid;
+    gap:10px;
+  }
+  .inlineGrid2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .inlineGrid3{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .inlineGrid4{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+  input[type="text"], input[type="number"], input[type="date"], textarea, select{
+    width:100%;
     padding:8px 10px;
     border:1px solid var(--border);
     border-radius:8px;
     font-size:14px;
-    width:100%;
-    box-sizing:border-box;
     background:#fff;
   }
-
-  .mono{
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  }
-
-  .btnRow{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap:10px;
-    margin-top:10px;
-  }
-
+  textarea{ min-height:68px; resize:vertical; }
+  input[type="checkbox"]{ transform:translateY(1px); }
+  .btnRow{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
   button{
     padding:10px 12px;
     border-radius:10px;
@@ -112,56 +116,64 @@
     font-weight:750;
     cursor:pointer;
   }
-  button.secondary{
-    background:#fff;
-    color:#111;
-    font-weight:700;
-  }
-  button.danger{
-    background:#b00020;
-    border-color:#b00020;
-  }
-  button:active{transform: translateY(1px);}
+  button.secondary{ background:#fff; color:#111; }
+  button.ghost{ background:#f6f6f6; color:#111; }
+  button.warn{ background:#8a6110; border-color:#8a6110; }
+  button.danger{ background:var(--danger); border-color:var(--danger); }
+  button:active{ transform:translateY(1px); }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  .smallBtn{ padding:6px 9px; border-radius:8px; font-size:12px; }
+  .hint{ color:var(--muted); font-size:12px; line-height:1.4; }
+  .mono{ font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  .hidden{ display:none !important; }
+  .caps{ text-transform:uppercase; letter-spacing:.4px; }
 
-  .hint{
-    color: var(--muted);
-    font-size:12px;
-    line-height:1.35;
-    margin-top:8px;
-  }
-
-  .filters{
+  .dashboardGrid{
     display:grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
     gap:10px;
-    margin: 8px 0 10px;
   }
-
-  /* Table */
-table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:13px;
-    margin-top:10px;
-    background:#fff;
-  }
-  th, td{
-    border-bottom:1px solid #eee;
-    padding:10px 8px;
-    vertical-align:top;
-  }
-  th{ text-align:left; font-size:12px; color:#333; }
-  td{ line-height:1.4; }
-  tr:hover td{ background:#fafafa; }
-
-  .tableWrap{
-    overflow:auto;
-    border:1px solid #eee;
+  .summaryCard{
+    border:1px solid #e4e4e4;
     border-radius:12px;
-    padding:6px;
     background:#fff;
+    padding:10px;
+    cursor:pointer;
+    min-height:82px;
+    display:grid;
+    align-content:start;
+    gap:4px;
   }
+  .summaryCard.active{ border-color:#111; box-shadow:inset 0 0 0 1px #111; }
+  .summaryCard.exception{ border-color:#efc0c0; background:#fff5f5; }
+  .summaryCard .count{ font-size:24px; font-weight:900; }
+  .summaryCard .label{ font-size:12px; font-weight:800; }
+  .summaryCard .sub{ font-size:11px; color:var(--muted); }
 
+  .toolbar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .toolbar .grow{ flex:1 1 220px; }
+  .filterGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;
+  }
+  .bulkToolbar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    padding:10px;
+    border:1px solid #ececec;
+    border-radius:10px;
+    background:#fff;
+    margin-bottom:10px;
+  }
+  .badgeRow{ display:flex; gap:6px; flex-wrap:wrap; }
   .pill{
     display:inline-block;
     padding:3px 8px;
@@ -172,177 +184,149 @@ table{
     background:#fff;
     white-space:nowrap;
   }
-  .pill.yes{ border-color:#0b6; color:#0b6; }
-  .pill.no{ border-color:#999; color:#333; }
+  .pill.done{ border-color:var(--good); color:var(--good); }
+  .pill.warn{ border-color:#c89d39; color:#7a5a00; }
   .pill.special{ border-color:#b00020; color:#b00020; }
-  .pill.done{ border-color:#0b6; color:#0b6; }
-  .pill.warn{ border-color:#b8860b; color:#7a5a00; }
+  .pill.info{ border-color:#597399; color:#345; }
+  .pill.soft{ background:#f6f6f6; }
+  .pill.exception{ border-color:#c33; color:#c33; background:#fff4f4; }
 
-  .actions{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
+  .tableWrap{
+    overflow:auto;
+    border:1px solid #ececec;
+    border-radius:12px;
+    background:#fff;
   }
-  .smallBtn{
-    padding:6px 10px;
-    border-radius:10px;
-    font-size:12px;
-  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th, td{ border-bottom:1px solid #eee; padding:9px 8px; vertical-align:top; }
+  thead th{ position:sticky; top:0; background:#fafafa; z-index:1; font-size:12px; color:#333; }
+  tr:hover td{ background:#fafafa; }
+  tr.rowException td{ background:#fff7f7; }
+  tr.rowSpecial td{ box-shadow:inset 3px 0 0 #b00020; }
+  tr.rowOverdue td{ box-shadow:inset 3px 0 0 #c89d39; }
+  tr.rowDone td{ color:#4b4b4b; }
+  .actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
-  .hidden{ display:none !important; }
-
-  /* ===== Aging heat (subtle ramp) ===== */
-  .age0 td{ background:#fff; }
-  .age1 td{ background:#fffdf6; }
-  .age2 td{ background:#fff9e8; }
-  .age3 td{ background:#fff3d5; }
-  .age4 td{ background:#ffe8ba; }
-
-  /* ===== Receipt styles ===== */
-  .receiptWrap{
+  .queueBoard{
     display:grid;
-    justify-content:center;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;
+  }
+  .queueColumn{
+    border:1px solid #e9e9e9;
+    border-radius:12px;
+    background:#fff;
+    padding:10px;
+    min-height:160px;
+  }
+  .queueColumn h3{ margin-top:0; }
+  .queueCard{
+    border:1px solid #ececec;
+    border-radius:10px;
+    padding:8px;
+    margin-bottom:8px;
+    background:#fcfcfc;
+    display:grid;
+    gap:6px;
+  }
+  .metricGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;
+  }
+  .metric{
+    border:1px solid #ececec;
+    border-radius:10px;
+    background:#fff;
+    padding:10px;
+  }
+  .metric .value{ font-size:20px; font-weight:900; }
+
+  .timeline{
+    display:grid;
+    gap:8px;
+    max-height:220px;
+    overflow:auto;
+    padding-right:4px;
+  }
+  .timelineItem{
+    border-left:3px solid #ccc;
+    padding-left:8px;
+  }
+  .timelineItem strong{ display:block; }
+
+  .receivingList{
+    border:1px solid #ececec;
+    border-radius:10px;
+    max-height:340px;
+    overflow:auto;
+    background:#fff;
+  }
+  .receivingItem{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:8px;
+    padding:10px;
+    border-bottom:1px solid #eee;
+  }
+  .receivingItem:last-child{ border-bottom:none; }
+
+  .emptyState{
+    padding:18px;
+    text-align:center;
+    color:var(--muted);
+    border:1px dashed #ddd;
+    border-radius:10px;
+    background:#fff;
   }
 
- .receipt{
-    width: var(--paper);
+  .receiptWrap{ display:grid; justify-content:center; }
+  .receipt{
+    width:var(--paper);
     background:#fff;
     border:1px solid var(--border);
     border-radius:10px;
     padding:10px;
-    box-sizing:border-box;
-
-    font-family: "Courier New", Courier, monospace;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.25;
-
-    image-rendering: pixelated;
-    -webkit-font-smoothing: none;
-    font-smooth: never;
+    font-family:"Courier New", Courier, monospace;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.25;
+    image-rendering:pixelated;
+    -webkit-font-smoothing:none;
   }
-
-  .r-title{
-    text-align:center;
-    font-size:18px;
-    font-weight:900;
-    letter-spacing: .4px;
-    margin: 2px 0 6px;
-  }
-
-  .r-special{
-    text-align:center;
-    font-size:16px;
-    font-weight:900;
-    margin: 2px 0 6px;
-  }
-
-  .r-rule{
-    border-top:1px dashed #000;
-    margin:6px 0;
-  }
-
-  .r-line{
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-    margin: 2px 0;
-  }
-
+  .r-title{ text-align:center; font-size:18px; font-weight:900; margin:2px 0 6px; }
+  .r-special{ text-align:center; font-size:16px; font-weight:900; margin:2px 0 6px; }
+  .r-rule{ border-top:1px dashed #000; margin:6px 0; }
+  .r-line{ display:flex; justify-content:space-between; gap:10px; margin:2px 0; }
   .r-left{ flex:1; overflow-wrap:anywhere; }
   .r-right{ white-space:nowrap; font-weight:900; }
+  .r-block{ margin-top:6px; font-weight:900; }
+  .r-sub{ font-weight:700; }
+  .receiptStack{ display:grid; gap:12px; justify-content:center; }
+  .receiptStack .receipt + .receipt{ break-before:page; page-break-before:always; }
 
-  .r-block{
-    margin-top:6px;
-    font-weight:900;
-  }
-
-  .r-sub{
-    font-weight:700;
- }
-
-  .receiptStack{
-    display:grid;
-    gap:12px;
-    justify-content:center;
-  }
-
-  .receiptStack .receipt + .receipt{
-    break-before: page;
-    page-break-before: always;
-  }
-
-  /* ===== Bookplate styles ===== */
   .bookplateSheet{
-    width: 8.5in;
-    height: 11in;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: repeat(2, 3in);
-    grid-template-rows: repeat(3, 3.75in);
-    justify-content: space-between;
-    align-content: space-between;
-    padding: 0.25in 0.35in;
-    box-sizing: border-box;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    width:8.5in;
+    height:11in;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:repeat(2, 3in);
+    grid-template-rows:repeat(3, 3.75in);
+    justify-content:space-between;
+    align-content:space-between;
+    padding:0.25in 0.35in;
+    box-sizing:border-box;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:12px;
   }
-
-  .bookplateLabel{
-    position: relative;
-    width: 3.75in;
-    height: 3in;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-  }
-
-  .bookplateLabel.empty{
-    background: #f5f5f5;
-    border: 1px dashed #ddd;
-  }
-
-  .bookplateBorder{
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: fill;
-    display: block;
-    pointer-events: none;
-  }
-
-  .bookplateContent{
-    position: relative;
-    z-index: 1;
-    padding: var(--plate-padding, 16px);
-    width: 100%;
-    box-sizing: border-box;
-    display: grid;
-    gap: 6px;
-  }
-
-  .bookplateLine{
-    font-size: 18px;
-    font-weight: 700;
-  }
-
-  .bookplateLine.template{
-    font-size: 15px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-  }
-
-  .bookplatePreviewHint{
-    margin-top: 10px;
-    color: var(--muted);
-    font-size: 12px;
-  }
+  .bookplateLabel{ position:relative; width:3.75in; height:3in; box-sizing:border-box; display:flex; align-items:center; justify-content:center; text-align:center; font-weight:700; }
+  .bookplateLabel.empty{ background:#f5f5f5; border:1px dashed #ddd; }
+  .bookplateBorder{ position:absolute; inset:0; width:100%; height:100%; object-fit:fill; display:block; pointer-events:none; }
+  .bookplateContent{ position:relative; z-index:1; padding:var(--plate-padding,16px); width:100%; display:grid; gap:6px; }
+  .bookplateLine{ font-size:18px; font-weight:700; }
+  .bookplateLine.template{ font-size:15px; text-transform:uppercase; letter-spacing:.8px; }
+  .bookplatePreviewHint{ margin-top:10px; color:var(--muted); font-size:12px; }
 
   @media print{
     body{ margin:0; background:#fff; }
@@ -353,53 +337,26 @@ table{
     body:not(.print-bookplates) .panel:not(.printpanel){ display:none !important; }
     body.print-order-slips .printpanel:not(.orderSlipPrintPanel){ display:none !important; }
     body.print-order-slips #orderSlipPrintList{ display:block; }
-    body.print-order-slips #orderSlipPrintList .receipt{
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    body.print-order-slips #orderSlipPrintList .receipt + .receipt{
-      break-before: page;
-      page-break-before: always;
-    }
+    body.print-order-slips #orderSlipPrintList .receipt{ break-inside:avoid; page-break-inside:avoid; }
+    body.print-order-slips #orderSlipPrintList .receipt + .receipt{ break-before:page; page-break-before:always; }
     .printpanel h2{ display:none !important; }
-    body.print-bookplates{
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .receipt{
-      border:none;
-      border-radius:0;
-      padding:0;
-      page: slip;
-    }
-    body.print-bookplates .bookplateSheet{
-      border:none;
-      border-radius:0;
-      padding:0.25in 0.35in;
-      page: bookplates;
-    }
+    body.print-bookplates{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .receipt{ border:none; border-radius:0; padding:0; page:slip; }
+    body.print-bookplates .bookplateSheet{ border:none; border-radius:0; padding:0.25in 0.35in; page:bookplates; }
   }
+  @page slip{ size:80mm auto; margin:4mm; }
+  @page bookplates{ size:letter; margin:0; }
 
-  @page slip{
-    size: 80mm auto;
-    margin: 4mm;
-  }
-
-  @page bookplates{
-    size: letter;
-    margin: 0;
+  @media (max-width: 1200px){
+    .app{ grid-template-columns:1fr; }
   }
 </style>
 </head>
-
 <body>
 <div class="app">
-
-<!-- LEFT -->
   <div class="panel">
-    <h1>Book Processing Dashboard v2.0</h1>
-
-   <div class="tabs" role="tablist">
+    <h1>Book Processing Dashboard v2.1</h1>
+    <div class="tabs" role="tablist">
       <button class="tabButton active" type="button" data-tab="processing">Processing</button>
       <button class="tabButton" type="button" data-tab="orders">Book Orders</button>
       <button class="tabButton" type="button" data-tab="bookplates">Bookplates</button>
@@ -408,291 +365,233 @@ table{
 
     <div id="tab-processing" class="tabPanel active">
       <div class="section">
-        <h2>Scan / Find</h2>
-        <div class="row">
-          <label for="scan">Scan barcode</label>
-          <input id="scan" class="mono" type="text" placeholder="Scan here (Enter loads/creates)" />
-        </div>
+        <h2>Operations dashboard</h2>
+        <div id="processingCards" class="dashboardGrid"></div>
+      </div>
 
-        <div class="row">
-          <label for="search">Search</label>
-          <input id="search" type="text" placeholder="Title or barcode…" />
-        </div>
-
-        <div class="filters">
+      <div class="section tight">
+        <div class="toolbar" style="margin-bottom:10px;">
+          <div class="grow">
+            <label for="scan">Scan / Find</label>
+            <input id="scan" class="mono" type="text" placeholder="Scan barcode here (Enter loads/creates)" />
+          </div>
+          <div class="grow">
+            <label for="search">Search</label>
+            <input id="search" type="text" placeholder="Search title, barcode, assignment, notes..." />
+          </div>
           <div>
-            <label for="filterSpecial" style="font-size:13px;">Special handling</label>
-            <select id="filterSpecial">
-              <option value="">All</option>
-              <option value="1">Special only</option>
-              <option value="0">Not special</option>
+            <label for="processingView">View</label>
+            <select id="processingView">
+              <option value="table">Table view</option>
+              <option value="queue">Queue view</option>
             </select>
           </div>
-
           <div>
-            <label for="showDone" style="font-size:13px;">Done items</label>
-            <select id="showDone">
-              <option value="0">Hide done</option>
-              <option value="1">Show done</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="viewMode" style="font-size:13px;">View</label>
-            <select id="viewMode">
-              <option value="all">All</option>
-              <option value="top10">Top 10 priority</option>
-              <option value="notCataloged">Not Cataloged</option>
+            <label for="sessionModeEnabled">Session mode</label>
+            <select id="sessionModeEnabled">
+              <option value="0">Off</option>
+              <option value="1">On</option>
             </select>
           </div>
         </div>
 
-        <div class="hint">
-          Priority score is automatic. Aging points only apply when <strong>Received=YES</strong> and the item is not Done.
+        <div class="filterGrid" style="margin-bottom:10px;">
+          <div><label for="filterStage">Stage</label><select id="filterStage"></select></div>
+          <div><label for="filterSpecialHandling">Special handling</label><select id="filterSpecialHandling"></select></div>
+          <div><label for="filterAssignment">Assigned to</label><select id="filterAssignment"></select></div>
+          <div><label for="filterLocation">Location</label><select id="filterLocation"></select></div>
+          <div><label for="filterGeneralFix">General fixes</label><select id="filterGeneralFix"></select></div>
+          <div><label for="filterExceptions">Exceptions</label><select id="filterExceptions"></select></div>
+          <div><label for="filterSlip">Slip status</label><select id="filterSlip"></select></div>
+          <div><label for="filterOrderLinked">Order linked</label><select id="filterOrderLinked"></select></div>
+          <div><label for="filterAging">Aging</label><select id="filterAging"></select></div>
+          <div><label for="filterRecentlyUpdated">Recently updated</label><select id="filterRecentlyUpdated"></select></div>
+          <div><label for="filterDoneState">Completion</label><select id="filterDoneState"></select></div>
+          <div><label for="savedPreset">Saved queue preset</label><select id="savedPreset"></select></div>
+        </div>
+
+        <div class="toolbar">
+          <button class="secondary smallBtn" type="button" onclick="clearFilters()">Clear filters</button>
+          <button class="secondary smallBtn" type="button" onclick="applyPreset($('savedPreset').value)">Apply preset</button>
+          <span class="hint">Click dashboard cards to filter, use session mode for active-only scanning, and queue view for stage bottlenecks.</span>
+        </div>
+      </div>
+
+      <div class="section tight">
+        <h2>Bulk actions</h2>
+        <div class="bulkToolbar">
+          <span class="mono" id="selectedCount">0 selected</span>
+          <button class="secondary smallBtn" type="button" onclick="bulkAction('printSlips')">Print slips</button>
+          <button class="secondary smallBtn" type="button" onclick="bulkAction('markReceived')">Mark received</button>
+          <button class="secondary smallBtn" type="button" onclick="bulkAction('markCataloged')">Mark cataloged</button>
+          <button class="secondary smallBtn" type="button" onclick="bulkAction('markCovered')">Mark covered</button>
+          <button class="secondary smallBtn" type="button" onclick="bulkAction('markDone')">Mark done</button>
+          <button class="secondary smallBtn" type="button" onclick="bulkAction('exportSelected')">Export selected</button>
+          <button class="danger smallBtn" type="button" onclick="bulkAction('delete')">Delete</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="inlineGrid2">
+          <div>
+            <h2>Reporting panel</h2>
+            <div id="reportingPanel" class="metricGrid"></div>
+          </div>
+          <div>
+            <h2>Saved presets</h2>
+            <div id="presetBadges" class="badgeRow"></div>
+            <div class="hint" style="margin-top:8px;">Built-in views: Rush Holds, Donations Review, Spine Labels Needed, Overdue Items, General Fixes, Awaiting Bookplates, Today’s Completed.</div>
+          </div>
         </div>
       </div>
 
       <div class="section">
         <h2>Item editor</h2>
-
-        <div class="row">
-          <label for="barcode">Barcode</label>
-          <input id="barcode" class="mono" type="text" placeholder="ISBN placeholder or real barcode" />
+        <div id="duplicateWarning" class="hint"></div>
+        <div class="row"><label for="barcode">Barcode</label><input id="barcode" class="mono" type="text" placeholder="Scan or type barcode" /></div>
+        <div class="row"><label for="title">Title</label><input id="title" type="text" placeholder="Title" /></div>
+        <div class="row"><label for="author">Author</label><input id="author" type="text" placeholder="Author" /></div>
+        <div class="inlineGrid3">
+          <div><label for="materialType">Material type</label><select id="materialType"></select></div>
+          <div><label for="workType">Work type</label><select id="workType"><option value="NEW">New processing</option><option value="FIX">General fixes</option></select></div>
+          <div><label for="completionState">Completion state</label><select id="completionState"></select></div>
         </div>
-
-        <div class="row">
-          <label for="title">Title</label>
-          <input id="title" type="text" placeholder="Title" />
+        <h3>Workflow status</h3>
+        <div class="inlineGrid4 generalFixHide">
+          <div><label for="received">Received</label><select id="received"><option>NO</option><option>YES</option></select></div>
+          <div><label for="cataloged">Cataloged</label><select id="cataloged"><option>NO</option><option>YES</option></select></div>
+          <div><label for="spine">Spine label</label><select id="spine"><option>NO</option><option>YES</option></select></div>
+          <div><label for="covered">Covered</label><select id="covered"><option>NO</option><option>YES</option></select></div>
         </div>
-
-        <div class="row">
-          <label for="author">Author</label>
-          <input id="author" type="text" placeholder="Author" />
+        <div class="inlineGrid4">
+          <div><label for="minimalCover">Minimal covering</label><div><input id="minimalCover" type="checkbox" /></div></div>
+          <div><label for="bookplate">Bookplate printed</label><select id="bookplate"><option>NO</option><option>YES</option></select></div>
+          <div id="fixDetailsRow" class="hidden generalFixOnly"><label for="fixDetails">Fix details</label><input id="fixDetails" type="text" placeholder="Describe required fixes" /></div>
+          <div id="fixDoneRow" class="hidden generalFixOnly"><label for="fixDone">Fix done</label><div><input id="fixDone" type="checkbox" /></div></div>
         </div>
-
-         <div class="row">
-          <label for="workType">Work type</label>
-          <select id="workType">
-            <option value="NEW">New processing</option>
-            <option value="FIX">General fixes</option>
-          </select>
+        <h3>Special handling</h3>
+        <div class="inlineGrid3 generalFixHide">
+          <div><label for="holdName">Hold for</label><input id="holdName" type="text" placeholder="Name or cardholder" /></div>
+          <div><label for="adoptedAmt">Adopted $</label><input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div><label for="donated">Donation</label><input id="donated" type="text" placeholder="Donor name" /></div>
+          <div><label for="memorial">Memorial</label><input id="memorial" type="text" placeholder="In memory/honor of" /></div>
+          <div><label for="paidPrice">Paid price</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div><label for="retailPrice">Retail price</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
         </div>
-
-        <div class="row generalFixHide">
-          <label for="received">Received</label>
-          <select id="received">
-            <option>NO</option>
-            <option>YES</option>
-          </select>
+        <div class="inlineGrid3">
+          <div><label for="exceptionType">Exception type</label><select id="exceptionType"></select></div>
+          <div><label for="assignedTo">Assigned to</label><input id="assignedTo" type="text" placeholder="Staff initials or name" /></div>
+          <div><label for="currentLocation">Current location</label><input id="currentLocation" type="text" placeholder="Cart, cataloging, repair shelf..." /></div>
         </div>
-
-        <h3 class="generalFixHide">Processing Status (YES/NO)</h3>
-
-        <div class="row generalFixHide">
-          <label for="cataloged">Cataloged</label>
-          <select id="cataloged"><option>NO</option><option>YES</option></select>
+        <div class="row rowTop"><label for="handoffNotes">Handoff notes</label><textarea id="handoffNotes" placeholder="Notes for the next staff handoff"></textarea></div>
+        <div class="row rowTop"><label for="exceptionNotes">Exception notes</label><textarea id="exceptionNotes" placeholder="Problem details, follow-up, vendor notes"></textarea></div>
+        <div class="row rowTop"><label for="itemNotes">Slip / item notes</label><textarea id="itemNotes" placeholder="Item notes for the slip"></textarea></div>
+        <div class="row"><label for="manualDone">Mark done manually</label><div><input id="manualDone" type="checkbox" /></div></div>
+        <div class="inlineGrid2">
+          <div>
+            <h3>Derived status</h3>
+            <div class="badgeRow">
+              <span id="editorStageBadge" class="pill info"></span>
+              <span id="editorNextStepBadge" class="pill warn"></span>
+            </div>
+          </div>
+          <div>
+            <h3>History stamps</h3>
+            <div class="hint mono" id="editorHistorySummary">No timestamps yet.</div>
+          </div>
         </div>
-
-        <div class="row generalFixHide">
-          <label for="spine">Spine label</label>
-          <select id="spine"><option>NO</option><option>YES</option></select>
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="covered">Covered</label>
-          <select id="covered"><option>NO</option><option>YES</option></select>
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="minimalCover">Minimal covering</label>
-          <input id="minimalCover" type="checkbox" />
-        </div>
-
-        <div class="row">
-          <label for="paidPrice">Paid price</label>
-          <input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" />
-        </div>
-
-        <div class="row">
-          <label for="retailPrice">Retail price</label>
-          <input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" />
-        </div>
-
-        <h3 class="generalFixHide">Context</h3>
-
-        <div class="row generalFixHide">
-          <label for="holdName">Hold for</label>
-          <input id="holdName" type="text" placeholder="Name (blank = no hold)" />
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="adoptedAmt">Adopted $</label>
-          <input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" />
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="bookplate">Bookplate printed</label>
-          <select id="bookplate"><option>NO</option><option>YES</option></select>
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="donated">Donated</label>
-          <input id="donated" type="text" placeholder="Donor name (blank = no donation)" />
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="memorial">Memorial</label>
-          <input id="memorial" type="text" placeholder="In memory/honor of" />
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="itemNotes">Notes</label>
-          <input id="itemNotes" type="text" placeholder="Item notes for slip" />
-        </div>
-
-        <div class="row generalFixHide">
-          <label for="manualDone">Mark done manually</label>
-          <input id="manualDone" type="checkbox" />
-        </div>
-
-        <div id="fixDetailsRow" class="row hidden generalFixOnly">
-          <label for="fixDetails">Fixes needed</label>
-          <input id="fixDetails" type="text" placeholder="Describe required fixes" />
-        </div>
-
-        <div id="fixDoneRow" class="row hidden generalFixOnly">
-          <label for="fixDone">Fix done</label>
-          <input id="fixDone" type="checkbox" />
-        </div>
-
         <h3>Slip tracking</h3>
-
-        <div class="row">
-          <label for="slipPrinted">Slip printed</label>
-          <input id="slipPrinted" type="text" disabled />
+        <div class="inlineGrid2">
+          <div><label for="slipPrinted">Slip printed</label><input id="slipPrinted" type="text" disabled /></div>
+          <div><label for="printedAt">Printed for</label><input id="printedAt" type="text" disabled /></div>
         </div>
-
-        <div class="row">
-          <label for="printedAt">Printed for</label>
-          <input id="printedAt" type="text" disabled />
-        </div>
-
         <div class="btnRow">
-          <button onclick="printSlip()">Print slip</button>
-          <button class="secondary" onclick="saveItem()">Save item</button>
+          <button type="button" onclick="printSlip()">Print slip</button>
+          <button class="secondary" type="button" onclick="saveItem()">Save item</button>
         </div>
-
         <div class="btnRow">
-          <button class="secondary" onclick="clearEditor()">Clear</button>
-          <button class="danger" onclick="deleteItem()">Delete</button>
+          <button class="secondary" type="button" onclick="clearEditor()">Clear</button>
+          <button class="danger" type="button" onclick="deleteItem()">Delete</button>
+        </div>
+        <div class="section tight" style="margin-top:12px; margin-bottom:0;">
+          <h3>Activity timeline</h3>
+          <div id="activityTimeline" class="timeline"></div>
         </div>
       </div>
 
       <div class="section">
-        <h2>Items</h2>
-        <div id="summary" class="hint"></div>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Priority</th>
-                <th>Done</th>
-                <th>Title</th>
-                <th>Barcode</th>
-                <th>Flags</th>
-                <th>Slip</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="itemsTable"></tbody>
-          </table>
+        <div class="toolbar" style="justify-content:space-between; margin-bottom:10px;">
+          <h2 style="margin:0;">Processing queue</h2>
+          <div id="summary" class="hint"></div>
+        </div>
+        <div id="tableViewWrap">
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th><input id="selectAllVisible" type="checkbox" /></th>
+                  <th>Priority</th>
+                  <th>Stage</th>
+                  <th>Next step</th>
+                  <th>Item</th>
+                  <th>Assignment</th>
+                  <th>Flags</th>
+                  <th>Slip</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="itemsTable"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="queueViewWrap" class="hidden">
+          <div id="queueBoard" class="queueBoard"></div>
         </div>
       </div>
     </div>
 
-     <div id="tab-orders" class="tabPanel">
+    <div id="tab-orders" class="tabPanel">
       <div class="section">
-        <h2>Book Orders</h2>
-        <div class="row">
-          <label for="orderNumber">Order #</label>
-          <input id="orderNumber" type="text" placeholder="Order number" />
-        </div>
-        <div class="row">
-          <label for="orderVendor">Vendor</label>
-          <input id="orderVendor" type="text" placeholder="Vendor or source" />
-        </div>
-        <div class="row">
-          <label for="orderPlaced">Ordered on</label>
-          <input id="orderPlaced" type="date" />
-        </div>
-        <div class="row">
-          <label for="orderNotes">Notes</label>
-          <input id="orderNotes" type="text" placeholder="Rush, funding source, etc." />
+        <h2>Book orders</h2>
+        <div class="inlineGrid4">
+          <div><label for="orderNumber">Order #</label><input id="orderNumber" type="text" placeholder="Order number" /></div>
+          <div><label for="orderVendor">Vendor</label><input id="orderVendor" type="text" placeholder="Vendor/source" /></div>
+          <div><label for="orderPlaced">Ordered on</label><input id="orderPlaced" type="date" /></div>
+          <div><label for="orderNotes">Notes</label><input id="orderNotes" type="text" placeholder="Rush, funding source, etc." /></div>
         </div>
 
         <h3>Order items</h3>
-        <div class="row">
-          <label for="orderItemTitle">Item title</label>
-          <input id="orderItemTitle" type="text" placeholder="Item title" />
+        <div class="inlineGrid4">
+          <div><label for="orderItemTitle">Item title</label><input id="orderItemTitle" type="text" placeholder="Item title" /></div>
+          <div><label for="orderItemAuthor">Item author</label><input id="orderItemAuthor" type="text" placeholder="Item author" /></div>
+          <div><label for="orderItemBarcode">Item barcode</label><input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" /></div>
+          <div><label for="orderItemMaterialType">Material type</label><select id="orderItemMaterialType"></select></div>
+          <div><label for="orderItemDonation">Donation</label><input id="orderItemDonation" type="text" placeholder="Donor name" /></div>
+          <div><label for="orderItemMemorial">Memorial</label><input id="orderItemMemorial" type="text" placeholder="Memorial text" /></div>
+          <div><label for="orderItemNotes">Item notes</label><input id="orderItemNotes" type="text" placeholder="Notes to carry into processing" /></div>
+          <div><label for="orderItemPaidPrice">Paid price</label><input id="orderItemPaidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div><label for="orderItemRetailPrice">Retail price</label><input id="orderItemRetailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
         </div>
-        <div class="row">
-          <label for="orderItemAuthor">Item author</label>
-          <input id="orderItemAuthor" type="text" placeholder="Item author" />
-        </div>
-        <div class="row">
-          <label for="orderItemBarcode">Item barcode</label>
-          <input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" />
-        </div>
-        <div class="row">
-          <label for="orderItemDonation">Donation</label>
-          <input id="orderItemDonation" type="text" placeholder="Donor name (optional)" />
-        </div>
-        <div class="row">
-          <label for="orderItemMemorial">Memorial</label>
-          <input id="orderItemMemorial" type="text" placeholder="Memorial text (optional)" />
-        </div>
-        <div class="row">
-          <label for="orderItemNotes">Item notes</label>
-          <input id="orderItemNotes" type="text" placeholder="Notes to carry to processing" />
-        </div>
-        <div class="row">
-          <label for="orderItemPaidPrice">Paid price</label>
-          <input id="orderItemPaidPrice" type="number" min="0" step="0.01" placeholder="0.00" />
-        </div>
-        <div class="row">
-          <label for="orderItemRetailPrice">Retail price</label>
-          <input id="orderItemRetailPrice" type="number" min="0" step="0.01" placeholder="0.00" />
-        </div>
-        <div class="btnRow">
-          <button class="secondary" onclick="addOrderItem()">Add item</button>
-        </div>
-        <div class="tableWrap">
+        <div class="btnRow"><button class="secondary" type="button" onclick="addOrderItem()">Add item</button><button class="secondary" type="button" onclick="saveOrder()">Save order</button></div>
+        <div class="tableWrap" style="margin-top:10px;">
           <table>
             <thead>
-              <tr>
-                <th>Item</th>
-                <th>Author</th>
-                <th>Barcode</th>
-                <th>Donation</th>
-                <th>Memorial</th>
-                <th>Paid</th>
-                <th>Retail</th>
-                <th>Notes</th>
-                <th>Actions</th>
-              </tr>
+              <tr><th>Item</th><th>Author</th><th>Barcode</th><th>Type</th><th>Donation</th><th>Memorial</th><th>Paid</th><th>Retail</th><th>Notes</th><th>Actions</th></tr>
             </thead>
             <tbody id="orderItemsTable"></tbody>
           </table>
         </div>
+        <div class="btnRow"><button class="secondary" type="button" onclick="clearOrder()">Clear</button><button class="danger" type="button" onclick="deleteOrder()">Delete</button></div>
+      </div>
 
-        <div class="btnRow">
-          <button class="secondary" onclick="saveOrder()">Save order</button>
-          <button class="secondary" onclick="clearOrder()">Clear</button>
+      <div class="section">
+        <h2>Receiving session mode</h2>
+        <div class="inlineGrid3">
+          <div><label for="receivingOrderSelect">Order</label><select id="receivingOrderSelect"></select></div>
+          <div><label>Progress</label><div id="receivingProgress" class="hint mono">No order selected.</div></div>
+          <div><label>Actions</label><div class="actions"><button class="secondary smallBtn" type="button" onclick="receiveAllItemsForSelectedOrder()">Receive all</button><button class="secondary smallBtn" type="button" onclick="printSelectedOrderSlips()">Bulk print slips</button></div></div>
         </div>
-
-        <div class="btnRow">
-          <button class="danger" onclick="deleteOrder()">Delete</button>
-        </div>
+        <div class="receivingList" id="receivingList"></div>
       </div>
 
       <div class="section">
@@ -701,14 +600,7 @@ table{
         <div class="tableWrap">
           <table>
             <thead>
-              <tr>
-                <th>Order #</th>
-                <th>Vendor</th>
-                <th>Ordered</th>
-                <th>Items</th>
-                <th>Notes</th>
-                <th>Actions</th>
-              </tr>
+              <tr><th>Order #</th><th>Vendor</th><th>Ordered</th><th>Progress</th><th>Notes</th><th>Actions</th></tr>
             </thead>
             <tbody id="ordersTable"></tbody>
           </table>
@@ -719,117 +611,52 @@ table{
     <div id="tab-bookplates" class="tabPanel">
       <div class="section">
         <h2>Bookplate generator</h2>
-
-        <div class="row">
-          <label for="bookplateTemplate">Template</label>
-          <select id="bookplateTemplate">
-            <option value="donated">Donated by</option>
-            <option value="memory">In memory of</option>
-            <option value="given">Given by</option>
-          </select>
-        </div>
-
-        <div class="row">
-          <label for="bookplateLine1">Name line 1</label>
-          <input id="bookplateLine1" type="text" placeholder="Name" />
-        </div>
-
-        <div class="row">
-          <label for="bookplateLine2">Name line 2</label>
-          <input id="bookplateLine2" type="text" placeholder="Optional second line" />
-        </div>
+        <div class="row"><label for="bookplateTemplate">Template</label><select id="bookplateTemplate"><option value="donated">Donated by</option><option value="memory">In memory of</option><option value="given">Given by</option></select></div>
+        <div class="row"><label for="bookplateLine1">Name line 1</label><input id="bookplateLine1" type="text" placeholder="Name" /></div>
+        <div class="row"><label for="bookplateLine2">Name line 2</label><input id="bookplateLine2" type="text" placeholder="Optional second line" /></div>
       </div>
-
       <div class="section">
         <h2>Print options</h2>
-        <div class="row">
-          <label for="bookplateFillSheet">Fill sheet (6)</label>
-          <input id="bookplateFillSheet" type="checkbox" checked />
-        </div>
-        <div class="row">
-          <label for="bookplateStartPos">Start position</label>
-          <select id="bookplateStartPos">
-            <option value="1">1 (Top left)</option>
-            <option value="2">2 (Top right)</option>
-            <option value="3">3 (Middle left)</option>
-            <option value="4">4 (Middle right)</option>
-            <option value="5">5 (Bottom left)</option>
-            <option value="6">6 (Bottom right)</option>
-          </select>
-        </div>
-        <div class="btnRow">
-          <button type="button" onclick="printBookplates()">Print bookplates</button>
-          <button class="secondary" type="button" onclick="clearBookplateForm()">Clear</button>
-        </div>
+        <div class="row"><label for="bookplateFillSheet">Fill sheet (6)</label><input id="bookplateFillSheet" type="checkbox" checked /></div>
+        <div class="row"><label for="bookplateStartPos">Start position</label><select id="bookplateStartPos"><option value="1">1 (Top left)</option><option value="2">2 (Top right)</option><option value="3">3 (Middle left)</option><option value="4">4 (Middle right)</option><option value="5">5 (Bottom left)</option><option value="6">6 (Bottom right)</option></select></div>
+        <div class="btnRow"><button type="button" onclick="printBookplates()">Print bookplates</button><button class="secondary" type="button" onclick="clearBookplateForm()">Clear</button></div>
       </div>
-
       <div class="section">
         <h2>Border</h2>
-        <div class="row">
-          <label for="bookplateBorderOn">Show border</label>
-          <input id="bookplateBorderOn" type="checkbox" checked />
-        </div>
-        <div class="row">
-          <label for="bookplateBorderSelect">Border image</label>
-          <select id="bookplateBorderSelect"></select>
-        </div>
-        <div class="row">
-          <label>Preview</label>
-          <img id="bookplateBorderPreview" alt="Border preview" style="max-width:120px;max-height:120px;border:1px solid #eee;border-radius:8px;background:#fff;" />
-        </div>
-        <div class="row">
-          <label for="bookplatePadding">Text padding</label>
-          <div>
-            <input id="bookplatePadding" type="range" min="0" max="40" step="1" value="16" />
-            <div class="hint">Padding: <span id="bookplatePaddingValue">16</span>px</div>
-          </div>
-        </div>
+        <div class="row"><label for="bookplateBorderOn">Show border</label><input id="bookplateBorderOn" type="checkbox" checked /></div>
+        <div class="row"><label for="bookplateBorderSelect">Border image</label><select id="bookplateBorderSelect"></select></div>
+        <div class="row"><label>Preview</label><img id="bookplateBorderPreview" alt="Border preview" style="max-width:120px;max-height:120px;border:1px solid #eee;border-radius:8px;background:#fff;" /></div>
+        <div class="row"><label for="bookplatePadding">Text padding</label><div><input id="bookplatePadding" type="range" min="0" max="40" step="1" value="16" /><div class="hint">Padding: <span id="bookplatePaddingValue">16</span>px</div></div></div>
       </div>
     </div>
 
     <div id="tab-settings" class="tabPanel">
       <div class="section">
         <h2>Data management</h2>
-        <div class="row">
-          <label>Last export</label>
-          <div class="mono" id="lastExportStamp">Never</div>
-        </div>
-        <div class="btnRow">
-          <button class="secondary" onclick="exportAllData()">Export all data</button>
-          <button class="secondary" onclick="triggerImport()">Import data</button>
-        </div>
+        <div class="row"><label>Schema version</label><div id="schemaVersionValue" class="mono"></div></div>
+        <div class="row"><label>Last export</label><div id="lastExportStamp" class="mono">Never</div></div>
+        <div class="btnRow"><button class="secondary" type="button" onclick="exportAllData()">Export all data</button><button class="secondary" type="button" onclick="triggerImport()">Import data</button></div>
+        <div class="btnRow"><button class="secondary" type="button" onclick="exportSubset('processing')">Export processing only</button><button class="secondary" type="button" onclick="exportSubset('orders')">Export orders only</button></div>
         <input id="importFile" type="file" accept="application/json" class="hidden" />
-        <div class="hint">
-          Export downloads a JSON backup of all items and orders. Import replaces the current dataset with the file contents.
-       </div>
+        <div id="importPreviewSummary" class="hint">Import replaces current local data after preview confirmation.</div>
       </div>
-
       <div class="section">
         <h2>Bookplate borders</h2>
-        <div class="row">
-          <label for="borderUpload">Upload border</label>
-          <input id="borderUpload" type="file" accept="image/*" />
-        </div>
-        <div class="hint">
-          Upload transparent PNG, GIF, or JPG borders. These are stored locally in this browser.
-        </div>
+        <div class="row"><label for="borderUpload">Upload border</label><input id="borderUpload" type="file" accept="image/*" /></div>
+        <div class="hint">Upload transparent PNG, GIF, or JPG borders. Stored locally in this browser.</div>
         <div id="borderList" class="tableWrap" style="margin-top:10px;"></div>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT: receipt -->
   <div class="panel printpanel" id="slipPreviewPanel">
     <h2>Slip Preview</h2>
     <div class="receiptWrap">
       <div class="receipt" id="receipt">
         <div id="rSpecialTop" class="r-special hidden">⚠ SPECIAL HANDLING</div>
-
         <div class="r-title">PROCESSING STATUS</div>
-         <div class="r-rule"></div>
-
+        <div class="r-rule"></div>
         <div id="rTitleBlock" class="r-block hidden"></div>
-
         <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right" id="rWorkType"></div></div>
         <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right" id="rReceived"></div></div>
         <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right" id="rCataloged"></div></div>
@@ -838,47 +665,18 @@ table{
         <div class="r-line"><div class="r-left r-sub">Minimal cover</div><div class="r-right" id="rMinimalCover"></div></div>
         <div class="r-line"><div class="r-left r-sub">Paid price</div><div class="r-right" id="rPaidPrice"></div></div>
         <div class="r-line"><div class="r-left r-sub">Retail price</div><div class="r-right" id="rRetailPrice"></div></div>
-
         <div class="r-rule"></div>
-
-        <div id="rHoldRow" class="r-line hidden">
-          <div class="r-left r-sub">HOLD</div><div class="r-right" id="rHoldName"></div>
-        </div>
-
-        <div id="rAdoptedRow" class="r-line hidden">
-          <div class="r-left r-sub">ADOPTED</div><div class="r-right" id="rAdoptedAmt"></div>
-        </div>
-
-        <div id="rBookplateRow" class="r-line hidden">
-          <div class="r-left r-sub">BOOKPLATE</div><div class="r-right" id="rBookplate"></div>
-        </div>
-
-        <div id="rDonatedRow" class="r-line hidden">
-          <div class="r-left r-sub">DONATION</div><div class="r-right" id="rDonatedName"></div>
-        </div>
-
-        <div id="rMemorialRow" class="r-line hidden">
-          <div class="r-left r-sub">MEMORIAL</div><div class="r-right" id="rMemorial"></div>
-        </div>
-
-        <div id="rNotesRow" class="r-line hidden">
-          <div class="r-left r-sub">NOTES</div><div class="r-right" id="rNotes"></div>
-        </div>
-
+        <div id="rHoldRow" class="r-line hidden"><div class="r-left r-sub">HOLD</div><div class="r-right" id="rHoldName"></div></div>
+        <div id="rAdoptedRow" class="r-line hidden"><div class="r-left r-sub">ADOPTED</div><div class="r-right" id="rAdoptedAmt"></div></div>
+        <div id="rBookplateRow" class="r-line hidden"><div class="r-left r-sub">BOOKPLATE</div><div class="r-right" id="rBookplate"></div></div>
+        <div id="rDonatedRow" class="r-line hidden"><div class="r-left r-sub">DONATION</div><div class="r-right" id="rDonatedName"></div></div>
+        <div id="rMemorialRow" class="r-line hidden"><div class="r-left r-sub">MEMORIAL</div><div class="r-right" id="rMemorial"></div></div>
+        <div id="rNotesRow" class="r-line hidden"><div class="r-left r-sub">NOTES</div><div class="r-right" id="rNotes"></div></div>
         <div class="r-rule"></div>
-
         <svg id="barcodeSvg"></svg>
-        <div class="r-line">
-          <div class="r-left r-sub">Barcode</div>
-          <div class="r-right" id="rBarcodeText"></div>
-        </div>
-
+        <div class="r-line"><div class="r-left r-sub">Barcode</div><div class="r-right" id="rBarcodeText"></div></div>
         <div class="r-rule"></div>
-
-        <div class="r-line">
-          <div class="r-left r-sub">Printed for</div>
-          <div class="r-right" id="rPrintedAt"></div>
-        </div>
+        <div class="r-line"><div class="r-left r-sub">Printed for</div><div class="r-right" id="rPrintedAt"></div></div>
       </div>
     </div>
   </div>
@@ -886,1365 +684,1082 @@ table{
   <div class="panel printpanel hidden bookplatePrintPanel" id="bookplatePreviewPanel">
     <h2>Bookplate Preview</h2>
     <div class="bookplateSheet" id="bookplateSheet"></div>
-    <div class="bookplatePreviewHint">
-      Avery 6874 labels (3&quot; x 3 3/4&quot;), 2 columns × 3 rows. For best print/PDF output, set margins to None and disable headers/footers in the print dialog.
-    </div>
+    <div class="bookplatePreviewHint">Avery 6874 labels (3&quot; x 3 3/4&quot;), 2 columns × 3 rows. Set margins to None and disable headers/footers in the print dialog.</div>
   </div>
 
   <div class="panel printpanel hidden orderSlipPrintPanel" id="orderSlipPrintPanel">
     <h2>Order Slips</h2>
     <div id="orderSlipPrintList" class="receiptStack"></div>
   </div>
-
 </div>
 
 <script>
-  const $ = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
+const STORAGE_KEY = "bp_v2_priority";
+const EXPORT_TIMESTAMP_KEY = "bp_v2_priority_last_export";
+const SCHEMA_VERSION = 2;
+const defaultData = { schemaVersion: SCHEMA_VERSION, items: [], orders: [], bookplateBorders: [], savedViews: {} };
+const MATERIAL_TYPES = ["Book", "DVD", "Audiobook", "Kit", "Board game"];
+const COMPLETION_STATES = ["In Progress", "Ready to shelve", "Ready for hold pickup", "Pull aside", "Display ready", "Archived"];
+const EXCEPTION_TYPES = ["", "Damaged on arrival", "Missing from shipment", "Duplicate order", "Wrong edition", "Needs cataloging decision", "Waiting on vendor", "Routing issue", "Other"];
+const WORKFLOW_STAGES = ["Ordered", "Awaiting Receipt", "Received", "Cataloging", "Spine Label", "Covering", "Bookplate", "General Fix", "Complete"];
+const builtinPresets = {
+  rush_holds: { label: "Rush Holds", filters: { specialHandling: "hold", doneState: "open" } },
+  donations_review: { label: "Donations Review", filters: { specialHandling: "donation", doneState: "open" } },
+  spine_labels: { label: "Spine Labels Needed", filters: { stage: "Spine Label", doneState: "open" } },
+  overdue: { label: "Overdue Items", filters: { aging: "14", doneState: "open" } },
+  general_fixes: { label: "General Fixes", filters: { generalFix: "1", doneState: "open" } },
+  awaiting_bookplates: { label: "Awaiting Bookplates", filters: { stage: "Bookplate", doneState: "open" } },
+  todays_completed: { label: "Today’s Completed", filters: { doneState: "today" } }
+};
 
- const STORAGE_KEY = "bp_v2_priority";
-  const EXPORT_TIMESTAMP_KEY = "bp_v2_priority_last_export";
- const defaultData = { items: [], orders: [], bookplateBorders: [] };
-  let data = loadData();
-  let activeId = null;
-  let activeOrderId = null;
-  let orderItems = [];
+let data = loadData();
+let activeId = null;
+let activeOrderId = null;
+let orderItems = [];
+let selectedIds = new Set();
+let pendingImportData = null;
+let activeCardFilter = "";
 
-  function loadData(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return structuredClone(defaultData);
-      const parsed = JSON.parse(raw);
-       parsed.items ??= [];
-      parsed.orders ??= [];
-      parsed.bookplateBorders ??= [];
-      return parsed;
-    }catch{
-      return structuredClone(defaultData);
-    }
-  }
+function structuredCloneSafe(value){
+  return JSON.parse(JSON.stringify(value));
+}
 
- function persist(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    renderTable();
-    renderOrders();
-    syncReceipt();
-    renderBookplateBorders();
-    renderBookplateSheet();
-    renderSettings();
-  }
+function nowISO(){ return new Date().toISOString(); }
+function nowStamp(){
+  const d = new Date();
+  return d.toLocaleString([], { year:"numeric", month:"numeric", day:"numeric", hour:"numeric", minute:"2-digit" });
+}
+function startOfToday(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+function isTodayISO(iso){ if(!iso) return false; const d = new Date(iso); return isFinite(d) && d >= startOfToday(); }
+function daysSince(isoDate){ if(!isoDate) return 0; const then = new Date(isoDate).getTime(); if(!isFinite(then)) return 0; return Math.max(0, Math.floor((Date.now() - then)/(1000*60*60*24))); }
+function formatMoney(v){ const n = Number(v); return isFinite(n) && n > 0 ? `$${n.toFixed(2)}` : ""; }
+function uid(){ return "item_" + Math.random().toString(16).slice(2) + Date.now().toString(16); }
+function orderUid(){ return "order_" + Math.random().toString(16).slice(2) + Date.now().toString(16); }
+function escapeHTML(str){ return String(str ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
+function safeText(value, fallback=""){ return (value ?? fallback).toString(); }
 
-  function uid(){
-    return "item_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
-
-  function orderUid(){
-    return "order_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
-
-  function isDone(it){
-    if(it.manualDone === true) return true;
-    if(isGeneralFix(it) && it.fixDone === true) return true;
-    return (it.received === "YES" &&
-            it.cataloged === "YES" &&
-            it.spine === "YES" &&
-            it.covered === "YES");
-  }
-
-  function isGeneralFix(it){
-    return (it.workType || "NEW") === "FIX";
-  }
-
-  function hasHold(it){
-    return (it.holdName || "").trim().length > 0;
-  }
-
-  function hasAdopted(it){
-    const n = Number(it.adoptedAmt);
-    return isFinite(n) && n > 0;
-  }
-
-  function isSpecial(it){
-    // Special-handling triggers: hold OR adopted OR donated OR memorial
-    return hasHold(it) || hasAdopted(it) || hasDonation(it) || hasMemorial(it);
-  }
-
-  function hasDonation(it){
-    return (it.donated || "").trim().length > 0;
-  }
-
-  function hasMemorial(it){
-    return (it.memorial || "").trim().length > 0;
-  }
-
-  function formatMoney(v){
-    const n = Number(v);
-    if(!isFinite(n) || n <= 0) return "";
-    return "$" + n.toFixed(2);
-  }
-
- function nowStamp(){
-    const d = new Date();
-    return d.toLocaleString([], { year:"numeric", month:"numeric", day:"numeric", hour:"numeric", minute:"2-digit" });
-  }
-
-  function getLastExportStamp(){
-    return localStorage.getItem(EXPORT_TIMESTAMP_KEY) || "";
-  }
-
-  function setLastExportStamp(value){
-    localStorage.setItem(EXPORT_TIMESTAMP_KEY, value);
-    renderSettings();
-  }
-
-   function renderSettings(){
-    const stamp = getLastExportStamp();
-    $("lastExportStamp").textContent = stamp || "Never";
-  }
-
-  const bookplateTemplates = {
-    donated: "Donated by",
-    memory: "In memory of",
-    given: "Given by"
+function emptyItem(overrides = {}){
+  const stamp = nowISO();
+  return {
+    id: uid(), barcode:"", title:"", author:"", materialType:"Book", workType:"NEW",
+    received:"NO", cataloged:"NO", spine:"NO", covered:"NO", minimalCover:false,
+    paidPrice:"", retailPrice:"", manualDone:false, fixDetails:"", fixDone:false,
+    holdName:"", adoptedAmt:"", bookplate:"NO", donated:"", memorial:"", notes:"",
+    slipPrinted:"NO", printedAt:"", orderId:"", orderNumber:"", completionState:"In Progress",
+    exceptionType:"", exceptionNotes:"", assignedTo:"", currentLocation:"", handoffNotes:"",
+    createdAt: stamp, receivedAt:"", catalogedAt:"", spineAt:"", coveredAt:"", bookplatePrintedAt:"", doneAt:"", lastSlipPrintedAt:"",
+    statusSig:"", statusChangedAt: stamp, updatedAt: stamp, activity: [],
+    ...overrides
   };
+}
 
-  function renderBookplateBorders(){
-    const select = $("bookplateBorderSelect");
-    const list = $("borderList");
-    const borders = data.bookplateBorders || [];
-    const previousSelection = select.value;
-
-    select.innerHTML = "";
-    if(borders.length === 0){
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "No borders uploaded";
-      select.appendChild(option);
-    }else{
-      const emptyOption = document.createElement("option");
-      emptyOption.value = "";
-      emptyOption.textContent = "No border";
-      select.appendChild(emptyOption);
-      borders.forEach(border => {
-        const option = document.createElement("option");
-        option.value = border.id;
-        option.textContent = border.name || "Border";
-        select.appendChild(option);
-      });
-    }
-
-    if(previousSelection && borders.find(border => border.id === previousSelection)){
-      select.value = previousSelection;
-    }else{
-      select.value = "";
-    }
-
-    updateBookplateBorderPreview();
-
-    if(!list) return;
-    if(borders.length === 0){
-      list.innerHTML = `<div class="hint">No borders uploaded yet.</div>`;
-      return;
-    }
-
-    const table = document.createElement("table");
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th>Preview</th>
-          <th>Name</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    `;
-    const tbody = table.querySelector("tbody");
-    borders.forEach(border => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td><img src="${border.dataUrl}" alt="${escapeHTML(border.name || "Border")}" style="max-width:80px;max-height:80px;border:1px solid #eee;border-radius:6px;background:#fff;" /></td>
-        <td>${escapeHTML(border.name || "")}</td>
-        <td>
-          <div class="actions">
-            <button class="smallBtn danger" onclick="removeBorder('${border.id}')">Delete</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-    list.innerHTML = "";
-    list.appendChild(table);
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : structuredCloneSafe(defaultData);
+    return migrateData(parsed);
+  }catch{
+    return structuredCloneSafe(defaultData);
   }
-
-  function updateBookplateBorderPreview(){
-    const preview = $("bookplateBorderPreview");
-    if(!preview) return;
-    const borders = data.bookplateBorders || [];
-    const selected = borders.find(border => border.id === $("bookplateBorderSelect").value);
-    preview.src = selected?.dataUrl || "";
-    preview.style.visibility = selected ? "visible" : "hidden";
-  }
-
-  function removeBorder(id){
-    data.bookplateBorders = (data.bookplateBorders || []).filter(border => border.id !== id);
-    persist();
-  }
-
-  function getBookplateState(){
-    return {
-      template: $("bookplateTemplate").value,
-      line1: $("bookplateLine1").value.trim(),
-      line2: $("bookplateLine2").value.trim(),
-      fillSheet: $("bookplateFillSheet").checked,
-      startPos: Number($("bookplateStartPos").value || 1),
-      borderOn: $("bookplateBorderOn").checked,
-      borderId: $("bookplateBorderSelect").value,
-      padding: Number($("bookplatePadding").value || 0)
-    };
-  }
-
-  function buildBookplateLines(state){
-    const templateLine = bookplateTemplates[state.template] || "Donated by";
-    return [templateLine, state.line1, state.line2].filter(line => line.trim().length > 0);
-  }
-
-  function renderBookplateSheet(){
-    const sheet = $("bookplateSheet");
-    if(!sheet) return;
-    const state = getBookplateState();
-    const lines = buildBookplateLines(state);
-    const borders = data.bookplateBorders || [];
-    const selectedBorder = borders.find(border => border.id === state.borderId);
-
-    sheet.style.setProperty("--plate-padding", `${state.padding}px`);
-    sheet.innerHTML = "";
-
-    for(let i = 1; i <= 6; i += 1){
-      const label = document.createElement("div");
-      label.className = "bookplateLabel";
-      const shouldFill = state.fillSheet
-        ? i >= state.startPos
-        : i === state.startPos;
-
-      if(shouldFill){
-        if(state.borderOn && selectedBorder){
-          const img = document.createElement("img");
-          img.className = "bookplateBorder";
-          img.alt = "Bookplate border";
-          img.src = selectedBorder.dataUrl;
-          label.appendChild(img);
-        }
-
-        const content = document.createElement("div");
-        content.className = "bookplateContent";
-        lines.forEach((line, index) => {
-          const div = document.createElement("div");
-          div.className = `bookplateLine${index === 0 ? " template" : ""}`;
-          div.textContent = line;
-          content.appendChild(div);
-        });
-        label.appendChild(content);
-      }else{
-        label.classList.add("empty");
-      }
-      sheet.appendChild(label);
-    }
-  }
-
-  function clearBookplateForm(){
-    $("bookplateTemplate").value = "donated";
-    $("bookplateLine1").value = "";
-    $("bookplateLine2").value = "";
-    $("bookplateFillSheet").checked = true;
-    $("bookplateStartPos").value = "1";
-    $("bookplateBorderOn").checked = true;
-    $("bookplatePadding").value = "16";
-    $("bookplatePaddingValue").textContent = "16";
-    const borders = data.bookplateBorders || [];
-    $("bookplateBorderSelect").value = borders[0]?.id || "";
-    updateBookplateBorderPreview();
-    renderBookplateSheet();
-  }
-
-  function printBookplates(){
-    document.body.classList.add("print-bookplates");
-    window.print();
-  }
-
-  function escapeHTML(str){
-    return String(str ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
- function statusSignature(it){
-    // What should reset “aging”:
-    // work type + processing statuses + received + bookplate printed (since adopted workflow is real work)
-    return [
-      it.workType, it.received, it.cataloged, it.spine, it.covered,
-      it.bookplate, it.fixDone === true ? "YES" : "NO", it.manualDone === true ? "YES" : "NO"
-    ].join("|");
-  }
-
-  function daysSince(isoDate){
-    if(!isoDate) return 0;
-    const then = new Date(isoDate).getTime();
-    if(!isFinite(then)) return 0;
-    const now = Date.now();
-    const ms = now - then;
-    return Math.max(0, Math.floor(ms / (1000*60*60*24)));
-  }
-
-  function priorityScore(it){
-    // Importance + staleness.
-    // Only apply staleness when Received=YES and not done.
-    let score = 0;
-    const breakdown = [];
-
-    if(it.received !== "YES"){
-      breakdown.push("awaitingReceived");
-      return { score, breakdown };
-    }
-
-    if(hasHold(it)){ score += 60; breakdown.push("hold+60"); }
-    if(hasAdopted(it)){ score += 35; breakdown.push("adopted+35"); }
-    if(isGeneralFix(it)){ score += 25; breakdown.push("generalFix+25"); }
-
-    // Bookplate avoidance helper: if adopted and bookplate NOT printed, add pressure.
-    if(hasAdopted(it) && (it.bookplate || "NO") === "NO"){
-      score += 20; breakdown.push("bookplate+20");
-    }
-
-    // If received and still not cataloged, nudge upward because it blocks everything.
-    if(it.received === "YES" && it.cataloged === "NO"){
-      score += 20; breakdown.push("notCataloged+20");
-    }
-
-    // Donation and memorial priority boosts.
-    if(hasDonation(it)){
-      score += 15; breakdown.push("donation+15");
-    }
-    if(hasMemorial(it)){
-      score += 30; breakdown.push("memorial+30");
-    }
-
-    // Aging ramp
-    if(it.received === "YES" && !isDone(it)){
-      const d = daysSince(it.statusChangedAt);
-      const daily = Math.min(40, d * 2); // +2 per day, cap 40
-      if(daily > 0){ score += daily; breakdown.push(`age+${daily}`); }
-      if(d >= 7){ score += 15; breakdown.push("7d+15"); }
-      if(d >= 14){ score += 30; breakdown.push("14d+30"); }
-    }
-
-    return { score, breakdown };
-  }
-
-  function ageClass(it){
-    // Visual ramp (only when received YES and not done)
-    if(it.received !== "YES" || isDone(it)) return "age0";
-    const d = daysSince(it.statusChangedAt);
-    if(d >= 14) return "age4";
-    if(d >= 10) return "age3";
-    if(d >= 7) return "age2";
-    if(d >= 3) return "age1";
-    return "age0";
-  }
-
-
-  function toggleWorkTypeFields(){
-    const isFix = $("workType").value === "FIX";
-    document.querySelectorAll(".generalFixHide").forEach(el => el.classList.toggle("hidden", isFix));
-    document.querySelectorAll(".generalFixOnly").forEach(el => el.classList.toggle("hidden", !isFix));
-  }
-
-   // ----------------------------
-  // Editor
-  // ----------------------------
-  function getEditorItem(){
-    return {
-      id: activeId || uid(),
-      barcode: $("barcode").value.trim(),
-      title: $("title").value.trim(),
-      author: $("author").value.trim(),
-
-      workType: $("workType").value,
-      received: $("received").value,
-      cataloged: $("cataloged").value,
-      spine: $("spine").value,
-      covered: $("covered").value,
-      minimalCover: $("minimalCover").checked,
-      paidPrice: $("paidPrice").value,
-      retailPrice: $("retailPrice").value,
-      manualDone: $("manualDone").checked,
-      fixDetails: $("fixDetails").value.trim(),
-      fixDone: $("fixDone").checked,
-
-      holdName: $("holdName").value.trim(),
-      adoptedAmt: $("adoptedAmt").value,
-      bookplate: $("bookplate").value,
-      donated: $("donated").value.trim(),
-      memorial: $("memorial").value.trim(),
-      notes: $("itemNotes").value.trim(),
-
-      slipPrinted: ($("slipPrinted").value || "NO"),
-      printedAt: ($("printedAt").value || ""),
-
-      statusChangedAt: null,    // set on save
-      statusSig: null,          // set on save
-      updatedAt: new Date().toISOString()
-    };
- }
-
-  function loadIntoEditor(it){
-    activeId = it.id;
-
-    $("barcode").value = it.barcode || "";
-    $("title").value = it.title || "";
-    $("author").value = it.author || "";
-
-    $("workType").value = it.workType || "NEW";
-    $("received").value = it.received || "NO";
-    $("cataloged").value = it.cataloged || "NO";
-    $("spine").value = it.spine || "NO";
-    $("covered").value = it.covered || "NO";
-    $("minimalCover").checked = it.minimalCover === true;
-    $("paidPrice").value = it.paidPrice ?? "";
-    $("retailPrice").value = it.retailPrice ?? "";
-    $("manualDone").checked = it.manualDone === true;
-    $("fixDetails").value = it.fixDetails || "";
-    $("fixDone").checked = it.fixDone === true;
-
-    $("holdName").value = it.holdName || "";
-    $("adoptedAmt").value = it.adoptedAmt ?? "";
-    $("bookplate").value = it.bookplate || "NO";
-    $("donated").value = it.donated || "";
-    $("memorial").value = it.memorial || "";
-    $("itemNotes").value = it.notes || "";
-
-    $("slipPrinted").value = it.slipPrinted || "NO";
-    $("printedAt").value = it.printedAt || "";
-
-    syncReceipt();
-    toggleWorkTypeFields();
-  }
-
-  function clearEditor(){
-    activeId = null;
-    $("barcode").value = "";
-    $("title").value = "";
-    $("author").value = "";
-
-    $("workType").value = "NEW";
-    $("received").value = "NO";
-    $("cataloged").value = "NO";
-    $("spine").value = "NO";
-    $("covered").value = "NO";
-    $("minimalCover").checked = false;
-    $("paidPrice").value = "";
-    $("retailPrice").value = "";
-    $("manualDone").checked = false;
-    $("fixDetails").value = "";
-    $("fixDone").checked = false;
-
-    $("holdName").value = "";
-    $("adoptedAmt").value = "";
-    $("bookplate").value = "NO";
-    $("donated").value = "";
-    $("memorial").value = "";
-    $("itemNotes").value = "";
-
-    $("slipPrinted").value = "NO";
-    $("printedAt").value = "";
-
-    syncReceipt();
-    toggleWorkTypeFields();
-    $("scan").focus();
-  }
-
-  // ----------------------------
-  // Orders
-  // ----------------------------
-  function getEditorOrder(){
-    return {
-      id: activeOrderId || orderUid(),
-      orderNumber: $("orderNumber").value.trim(),
-      vendor: $("orderVendor").value.trim(),
-      orderedOn: $("orderPlaced").value,
-      notes: $("orderNotes").value.trim(),
-      items: [...orderItems],
-      updatedAt: new Date().toISOString()
-    };
-  }
-
-  function loadIntoOrderEditor(order){
-    activeOrderId = order.id;
-    $("orderNumber").value = order.orderNumber || order.title || "";
-    $("orderVendor").value = order.vendor || "";
-    $("orderPlaced").value = order.orderedOn || "";
-    $("orderNotes").value = order.notes || "";
-    orderItems = Array.isArray(order.items) ? [...order.items] : [];
-    renderOrderItems();
-  }
-
-  function clearOrder(){
-    activeOrderId = null;
-    $("orderNumber").value = "";
-    $("orderVendor").value = "";
-    $("orderPlaced").value = "";
-    $("orderNotes").value = "";
-    $("orderItemTitle").value = "";
-    $("orderItemAuthor").value = "";
-    $("orderItemBarcode").value = "";
-    $("orderItemDonation").value = "";
-    $("orderItemMemorial").value = "";
-    $("orderItemNotes").value = "";
-    $("orderItemPaidPrice").value = "";
-    $("orderItemRetailPrice").value = "";
-    orderItems = [];
-    renderOrderItems();
-  }
-
-  function saveOrder(){
-    const order = getEditorOrder();
-    if(!order.orderNumber){
-      alert("Order # is required.");
-      $("orderNumber").focus();
-      return;
-    }
-
-    const idx = data.orders.findIndex(x => x.id === order.id);
-    if(idx >= 0) data.orders[idx] = order;
-    else data.orders.push(order);
-    syncProcessingItemsFromOrder(order);
-    renderOrderItems();
-    persist();
-  }
-
-  function deleteOrder(){
-    if(!activeOrderId){
-      alert("No order loaded.");
-      return;
-    }
-    if(!confirm("Delete this order?")) return;
-    data.orders = data.orders.filter(x => x.id !== activeOrderId);
-    data.items = data.items.filter(x => x.orderId !== activeOrderId);
-    clearOrder();
-    persist();
-  }
-
-  function addOrderItem(){
-    const title = $("orderItemTitle").value.trim();
-    const author = $("orderItemAuthor").value.trim();
-    const barcode = $("orderItemBarcode").value.trim();
-    const donated = $("orderItemDonation").value.trim();
-    const memorial = $("orderItemMemorial").value.trim();
-    const notes = $("orderItemNotes").value.trim();
-    const paidPrice = $("orderItemPaidPrice").value;
-    const retailPrice = $("orderItemRetailPrice").value;
-    if(!title && !barcode){
-      alert("Enter an item title or barcode.");
-      $("orderItemTitle").focus();
-      return;
-    }
-    orderItems.push({
-      id: uid(),
-      title,
-      author,
-      barcode,
-      donated,
-      memorial,
-      notes,
-      paidPrice,
-      retailPrice
-    });
-    $("orderItemTitle").value = "";
-    $("orderItemAuthor").value = "";
-    $("orderItemBarcode").value = "";
-    $("orderItemDonation").value = "";
-    $("orderItemMemorial").value = "";
-    $("orderItemNotes").value = "";
-    $("orderItemPaidPrice").value = "";
-    $("orderItemRetailPrice").value = "";
-    renderOrderItems();
-  }
-
-  function removeOrderItem(id){
-    orderItems = orderItems.filter(item => item.id !== id);
-    renderOrderItems();
-  }
-
-  function renderOrderItems(){
-    const tbody = $("orderItemsTable");
-    tbody.innerHTML = "";
-    for(const [index, item] of orderItems.entries()){
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHTML(item.title || "")}</td>
-        <td>${escapeHTML(item.author || "")}</td>
-        <td class="mono">${escapeHTML(item.barcode || "")}</td>
-        <td>${escapeHTML(item.donated || "")}</td>
-        <td>${escapeHTML(item.memorial || "")}</td>
-        <td class="mono">${escapeHTML(formatMoney(item.paidPrice) || "")}</td>
-        <td class="mono">${escapeHTML(formatMoney(item.retailPrice) || "")}</td>
-        <td>${escapeHTML(item.notes || "")}</td>
-        <td>
-          <div class="actions">
-            <button class="smallBtn secondary" onclick="printOrderItemSlip('${item.id}', ${index})">Print slip</button>
-            <button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-  }
-
-  function syncProcessingItemsFromOrder(order){
-    const orderItemIds = new Set((order.items || []).map(item => item.id));
-    data.items = data.items.filter(item => item.orderId !== order.id || orderItemIds.has(item.id));
-
-    (order.items || []).forEach((orderItem, index) => {
-      const generatedBarcode = (!orderItem.barcode && order.orderNumber)
-        ? `ORDER-${order.orderNumber}-${index + 1}`
-        : "";
-      if(generatedBarcode){
-        orderItem.barcode = generatedBarcode;
-      }
-      const existing = data.items.find(item => item.id === orderItem.id);
-      const base = existing || {
-        id: orderItem.id,
-        barcode: orderItem.barcode || generatedBarcode || "",
-        title: orderItem.title || "",
-        author: orderItem.author || "",
-        workType: "NEW",
-        received: "NO",
-        cataloged: "NO",
-        spine: "NO",
-        covered: "NO",
-        minimalCover: false,
-        paidPrice: orderItem.paidPrice || "",
-        retailPrice: orderItem.retailPrice || "",
-        manualDone: false,
-        fixDetails: "",
-        fixDone: false,
-        holdName: "",
-        adoptedAmt: "",
-        bookplate: "NO",
-        donated: "",
-        memorial: "",
-        notes: "",
-        slipPrinted: "NO",
-        printedAt: "",
-        statusSig: ["NEW","NO","NO","NO","NO","NO","NO","NO"].join("|"),
-        statusChangedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      base.title = orderItem.title || base.title || "";
-      base.author = orderItem.author || base.author || "";
-      base.barcode = orderItem.barcode || base.barcode || "";
-      base.donated = orderItem.donated || base.donated || "";
-      base.memorial = orderItem.memorial || base.memorial || "";
-      base.notes = orderItem.notes || base.notes || "";
-      base.paidPrice = orderItem.paidPrice || base.paidPrice || "";
-      base.retailPrice = orderItem.retailPrice || base.retailPrice || "";
-      base.orderId = order.id;
-      base.orderNumber = order.orderNumber;
-      base.updatedAt = new Date().toISOString();
-
-      if(existing){
-        const index = data.items.findIndex(item => item.id === orderItem.id);
-        if(index >= 0) data.items[index] = base;
-      }else{
-        data.items.push(base);
-      }
-    });
-  }
-
-
-  function saveItem(){
-    const it = getEditorItem();
-    if(!it.barcode){
-      alert("Barcode is required (scan or type it).");
-      $("barcode").focus();
-      return;
-    }
-
-    // Merge with existing item if any
-    const idx = data.items.findIndex(x => x.id === it.id);
-    let prev = null;
-    if(idx >= 0) prev = data.items[idx];
-    else{
-      const byBarcode = data.items.findIndex(x => (x.barcode||"").trim() === it.barcode);
-      if(byBarcode >= 0){
-        prev = data.items[byBarcode];
-        it.id = prev.id;
-        activeId = it.id;
-      }
-    }
-
-    // Determine statusChangedAt (only if processing status signature changes)
-    const newSig = statusSignature(it);
-    const prevSig = prev?.statusSig ?? statusSignature(prev || it);
-
-    if(prev){
-      it.orderId = prev.orderId;
-      it.orderNumber = prev.orderNumber;
-    }
-
-    if(!prev){
-      it.statusSig = newSig;
-      it.statusChangedAt = new Date().toISOString();
-    }else{
-      it.statusSig = newSig;
-      it.statusChangedAt = (newSig !== prevSig) ? new Date().toISOString() : (prev.statusChangedAt || prev.updatedAt || new Date().toISOString());
-      // keep slipPrinted/printedAt if not changed in editor (already there)
-    }
-
-    it.updatedAt = new Date().toISOString();
-
-    // Upsert
-    const finalIdx = data.items.findIndex(x => x.id === it.id);
-    if(finalIdx >= 0) data.items[finalIdx] = it;
-    else data.items.push(it);
-
-    persist();
-  }
-
-  function deleteItem(){
-    if(!activeId){
-      alert("No item loaded.");
-      return;
-    }
-    if(!confirm("Delete this item?")) return;
-    data.items = data.items.filter(x => x.id !== activeId);
-    clearEditor();
-    persist();
-  }
-
-  // ----------------------------
-  // Printing
-  // ----------------------------
-  function printSlip(){
-    $("slipPrinted").value = "YES";
-    $("printedAt").value = nowStamp();
-    saveItem();
-    syncReceipt();
-    window.print();
-  }
-
-  function slipHTML(it, barcodeId){
-    const titleLine = [it.title || "", it.author || ""].filter(Boolean).join(" — ");
-    const adoptedTxt = formatMoney(it.adoptedAmt);
-    const paidPrice = formatMoney(it.paidPrice);
-    const retailPrice = formatMoney(it.retailPrice);
-    const isFix = isGeneralFix(it);
-    const receivedTxt = it.received || "NO";
-    const catalogedTxt = isFix ? (it.fixDone === true ? "YES" : "NO") : (it.cataloged || "NO");
-    const spineTxt = isFix ? "N/A" : (it.spine || "NO");
-    const coveredTxt = isFix ? ((it.fixDetails || "").trim() || "N/A") : (it.covered || "NO");
-    const minimalCoverTxt = isFix ? "" : (it.minimalCover === true ? "✓" : "");
-    const hold = (it.holdName || "").trim();
-    const donated = (it.donated || "").trim();
-    const memorial = (it.memorial || "").trim();
-    const notes = (it.notes || "").trim();
-    return `
-      <div class="receipt">
-        <div class="r-special${isSpecial(it) ? "" : " hidden"}">⚠ SPECIAL HANDLING</div>
-        <div class="r-title">PROCESSING STATUS</div>
-        <div class="r-rule"></div>
-
-        <div class="r-block${titleLine ? "" : " hidden"}">${escapeHTML(titleLine)}</div>
-
-        <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right">${isFix ? "GENERAL FIX" : "NEW PROCESSING"}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right">${escapeHTML(receivedTxt)}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right">${escapeHTML(catalogedTxt)}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Spine label</div><div class="r-right">${escapeHTML(spineTxt)}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Covered</div><div class="r-right">${escapeHTML(coveredTxt)}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Minimal cover</div><div class="r-right">${minimalCoverTxt}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Paid price</div><div class="r-right">${escapeHTML(paidPrice)}</div></div>
-        <div class="r-line"><div class="r-left r-sub">Retail price</div><div class="r-right">${escapeHTML(retailPrice)}</div></div>
-
-        <div class="r-rule"></div>
-        <div class="r-line${hold ? "" : " hidden"}"><div class="r-left r-sub">HOLD</div><div class="r-right">${escapeHTML(hold)}</div></div>
-        <div class="r-line${adoptedTxt ? "" : " hidden"}"><div class="r-left r-sub">ADOPTED</div><div class="r-right">${escapeHTML(adoptedTxt)}</div></div>
-        <div class="r-line${adoptedTxt ? "" : " hidden"}"><div class="r-left r-sub">BOOKPLATE</div><div class="r-right">${escapeHTML(it.bookplate || "NO")}</div></div>
-        <div class="r-line${donated ? "" : " hidden"}"><div class="r-left r-sub">DONATION</div><div class="r-right">${escapeHTML(donated)}</div></div>
-        <div class="r-line${memorial ? "" : " hidden"}"><div class="r-left r-sub">MEMORIAL</div><div class="r-right">${escapeHTML(memorial)}</div></div>
-        <div class="r-line${notes ? "" : " hidden"}"><div class="r-left r-sub">NOTES</div><div class="r-right">${escapeHTML(notes)}</div></div>
-
-        <div class="r-rule"></div>
-        <svg id="${barcodeId}"></svg>
-        <div class="r-line"><div class="r-left r-sub">Barcode</div><div class="r-right">${escapeHTML(it.barcode || "")}</div></div>
-
-        <div class="r-rule"></div>
-        <div class="r-line"><div class="r-left r-sub">Printed for</div><div class="r-right">${escapeHTML(it.printedAt || "")}</div></div>
-      </div>
-    `;
-  }
-
-  function printOrderSlips(orderId){
-    const order = data.orders.find(x => x.id === orderId);
-    if(!order) return;
-    const orderNumber = order.orderNumber || order.title || "this order";
-    const orderIdSet = new Set((order.items || []).map(item => item.id));
-    const orderProcessingItems = data.items.filter(item => item.orderId === orderId || orderIdSet.has(item.id));
-
-    if(orderProcessingItems.length === 0){
-      alert(`No saved processing items found for order ${orderNumber}. Save the order first.`);
-      return;
-    }
-
-    const stamp = nowStamp();
-    orderProcessingItems.forEach(item => {
-      item.slipPrinted = "YES";
-      item.printedAt = stamp;
-      item.updatedAt = new Date().toISOString();
-    });
-    persist();
-
-    const list = $("orderSlipPrintList");
-    list.innerHTML = "";
-
-    orderProcessingItems.forEach((item, index) => {
-      const wrapper = document.createElement("div");
-      const barcodeId = `orderBarcodeSvg_${index}`;
-      wrapper.innerHTML = slipHTML(item, barcodeId);
-      list.appendChild(wrapper.firstElementChild);
-      if(item.barcode){
-        try{
-          JsBarcode(`#${barcodeId}`, item.barcode, {
-            format:"CODE128",
-            width: 2,
-            height: 44,
-            displayValue: false,
-            margin: 0
-          });
-        }catch{}
-      }
-    });
-
-    const cleanupPrint = () => {
-      document.body.classList.remove("print-order-slips");
-      list.innerHTML = "";
-      window.removeEventListener("afterprint", cleanupPrint);
-    };
-
-    window.addEventListener("afterprint", cleanupPrint);
-    document.body.classList.add("print-order-slips");
-    window.print();
-  }
-
-  function printOrderItemSlip(orderItemId, fallbackIndex = 0){
-    const orderItem = orderItems.find(item => item.id === orderItemId);
-    if(!orderItem) return;
-
-    const orderNumber = $("orderNumber").value.trim() || "";
-    const stamp = nowStamp();
-    const barcode = (orderItem.barcode || "").trim() || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : "");
-    const processingItem = {
-      ...orderItem,
-      barcode,
-      workType: "NEW",
-      received: "NO",
-      cataloged: "NO",
-      spine: "NO",
-      covered: "NO",
-      minimalCover: false,
-      holdName: "",
-      adoptedAmt: "",
-      bookplate: "NO",
-      notes: orderItem.notes || "",
-      slipPrinted: "YES",
-      printedAt: stamp
-    };
-
-    orderItem.barcode = processingItem.barcode;
-    orderItem.slipPrinted = "YES";
-    orderItem.printedAt = stamp;
-
-    const matchingProcessingItem = data.items.find(item => item.id === orderItemId);
-    if(matchingProcessingItem){
-      matchingProcessingItem.barcode = processingItem.barcode;
-      matchingProcessingItem.slipPrinted = "YES";
-      matchingProcessingItem.printedAt = stamp;
-      matchingProcessingItem.updatedAt = new Date().toISOString();
-    }
-    persist();
-    renderOrderItems();
-
-    const list = $("orderSlipPrintList");
-    list.innerHTML = "";
-
-    const wrapper = document.createElement("div");
-    const barcodeId = `orderBarcodeSvg_single_${Date.now()}`;
-    wrapper.innerHTML = slipHTML(processingItem, barcodeId);
-    list.appendChild(wrapper.firstElementChild);
-
-    if(processingItem.barcode){
-      try{
-        JsBarcode(`#${barcodeId}`, processingItem.barcode, {
-          format:"CODE128",
-          width: 2,
-          height: 44,
-          displayValue: false,
-          margin: 0
-        });
-      }catch{}
-    }
-
-    const cleanupPrint = () => {
-      document.body.classList.remove("print-order-slips");
-      list.innerHTML = "";
-      window.removeEventListener("afterprint", cleanupPrint);
-    };
-
-    window.addEventListener("afterprint", cleanupPrint);
-    document.body.classList.add("print-order-slips");
-    window.print();
-  }
-
-  // ----------------------------
-  // Slip render
-  // ----------------------------
-  function syncReceipt(){
-    const it = getEditorItem();
-
-    $("rSpecialTop").classList.toggle("hidden", !isSpecial(it));
-
-    const t = (it.title || "").trim();
-    const author = (it.author || "").trim();
-    const titleLine = [t, author].filter(Boolean).join(" — ");
-   $("rTitleBlock").textContent = titleLine;
-    $("rTitleBlock").classList.toggle("hidden", titleLine.length === 0);
-
-    $("rWorkType").textContent = isGeneralFix(it) ? "GENERAL FIX" : "NEW PROCESSING";
-    $("rReceived").textContent = it.received;
-    $("rCataloged").textContent = it.cataloged;
-    $("rSpine").textContent = it.spine;
-    $("rCovered").textContent = it.covered;
-    $("rMinimalCover").textContent = it.minimalCover === true ? "✓" : "";
-    $("rPaidPrice").textContent = formatMoney(it.paidPrice);
-    $("rRetailPrice").textContent = formatMoney(it.retailPrice);
-
-    if(isGeneralFix(it)){
-      $("rCataloged").textContent = it.fixDone === true ? "YES" : "NO";
-      $("rSpine").textContent = "N/A";
-      $("rCovered").textContent = (it.fixDetails || "").trim() || "N/A";
-      $("rMinimalCover").textContent = "";
-    }
-
-    const hold = (it.holdName || "").trim();
-    $("rHoldName").textContent = hold || "";
-    $("rHoldRow").classList.toggle("hidden", hold.length === 0);
-
-    const adoptedTxt = formatMoney(it.adoptedAmt);
-    $("rAdoptedAmt").textContent = adoptedTxt;
-    $("rAdoptedRow").classList.toggle("hidden", adoptedTxt.length === 0);
-
-    // Bookplate row only if adopted
-    $("rBookplate").textContent = it.bookplate || "NO";
-    $("rBookplateRow").classList.toggle("hidden", adoptedTxt.length === 0);
-
-    const donation = (it.donated || "").trim();
-    $("rDonatedName").textContent = donation;
-    $("rDonatedRow").classList.toggle("hidden", donation.length === 0);
-
-    const memorial = (it.memorial || "").trim();
-    $("rMemorial").textContent = memorial;
-    $("rMemorialRow").classList.toggle("hidden", memorial.length === 0);
-
-    const notes = (it.notes || "").trim();
-    $("rNotes").textContent = notes;
-    $("rNotesRow").classList.toggle("hidden", notes.length === 0);
-
-    $("rBarcodeText").textContent = it.barcode || "";
-    if(it.barcode){
-      try{
-        JsBarcode("#barcodeSvg", it.barcode, {
-          format:"CODE128",
-          width: 2,
-          height: 44,
-          displayValue: false,
-          margin: 0
-        });
-      }catch{}
-    }
-
-    $("rPrintedAt").textContent = it.printedAt || "";
-  }
-
-  // ----------------------------
-  // Table
-  // ----------------------------
-  function renderTable(){
-    const tbody = $("itemsTable");
-    tbody.innerHTML = "";
-
-    const q = $("search").value.trim().toLowerCase();
-    const filterSpecial = $("filterSpecial").value;
-    const showDone = $("showDone").value === "1";
-    const viewMode = $("viewMode").value;
-
-    let items = [...data.items];
-
-    if(q){
-      items = items.filter(it =>
-        (it.title || "").toLowerCase().includes(q) ||
-        (it.barcode || "").toLowerCase().includes(q)
-      );
-    }
-
-    if(filterSpecial === "1") items = items.filter(isSpecial);
-    if(filterSpecial === "0") items = items.filter(it => !isSpecial(it));
-
-    if(!showDone){
-      items = items.filter(it => !isDone(it));
-    }
-
-    if(viewMode === "notCataloged"){
-      items = items.filter(it => it.cataloged !== "YES");
-    }
-
-    // Compute scores once for sort + display
-    const scored = items.map(it => {
-      const p = priorityScore(it);
-      return { it, score: p.score, breakdown: p.breakdown };
-    });
-
-    // Sort by score desc, then by statusChangedAt asc? (older first), then updatedAt desc
-    scored.sort((a,b) => {
-      if(b.score !== a.score) return b.score - a.score;
-
-      // If tied, older statusChangedAt first (more stuck)
-      const ad = new Date(a.it.statusChangedAt || a.it.updatedAt || 0).getTime();
-      const bd = new Date(b.it.statusChangedAt || b.it.updatedAt || 0).getTime();
-      if(ad !== bd) return ad - bd;
-
-      return (b.it.updatedAt || "").localeCompare(a.it.updatedAt || "");
-    });
-
-    let final = scored;
-    if(viewMode === "top10"){
-      final = scored.slice(0, 10);
-    }
-
-    const total = data.items.length;
-    const doneCount = data.items.filter(isDone).length;
-    const specialCount = data.items.filter(isSpecial).length;
-    const fixesCount = data.items.filter(isGeneralFix).length;
-    $("summary").textContent = `Total tracked: ${total} • Done: ${doneCount} • Special handling: ${specialCount} • General fixes: ${fixesCount}`;
-
-    for(const row of final){
-      const it = row.it;
-      const done = isDone(it);
-      const special = isSpecial(it);
-
-      const flags = [];
-      if(isGeneralFix(it)) flags.push(`<span class="pill warn">General Fix</span>`);
-      if(special) flags.push(`<span class="pill special">Special</span>`);
-      if(hasHold(it)) flags.push(`<span class="pill">Hold</span>`);
-      if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
-      if(hasAdopted(it) && (it.bookplate || "NO") === "NO") flags.push(`<span class="pill warn">Bookplate NO</span>`);
-      if(hasDonation(it)) flags.push(`<span class="pill">Donation</span>`);
-      if(hasMemorial(it)) flags.push(`<span class="pill">Memorial</span>`);
-      if(it.orderNumber) flags.push(`<span class="pill">Order #${escapeHTML(it.orderNumber)}</span>`);
-      if(it.manualDone === true) flags.push(`<span class="pill done">Manual done</span>`);
-      if(it.minimalCover === true) flags.push(`<span class="pill">Minimal cover ✓</span>`);
-      if(formatMoney(it.paidPrice)) flags.push(`<span class="pill">Paid ${escapeHTML(formatMoney(it.paidPrice))}</span>`);
-      if(formatMoney(it.retailPrice)) flags.push(`<span class="pill">Retail ${escapeHTML(formatMoney(it.retailPrice))}</span>`);
-
-      const slip = (it.slipPrinted === "YES")
-        ? `<span class="pill yes">Printed</span>`
-        : `<span class="pill no">No slip</span>`;
-
-      const ageD = (it.received === "YES" && !done) ? daysSince(it.statusChangedAt) : 0;
-      const ageLabel = (it.received === "YES" && !done && ageD > 0) ? `Age: ${ageD}d` : "";
-
-      const breakdown = row.breakdown.join(", ");
-      const tr = document.createElement("tr");
-      tr.className = ageClass(it);
-      tr.innerHTML = `
-        <td>
-          <div class="mono" style="font-weight:900;font-size:14px;">${row.score}</div>
-          <div class="hint" title="${escapeHTML(breakdown)}">${escapeHTML(ageLabel)}</div>
-        </td>
-        <td>${done ? `<span class="pill done">YES</span>` : `<span class="pill no">NO</span>`}</td>
-        <td>${escapeHTML([it.title || "", it.author || ""].filter(Boolean).join(" — "))}</td>
-        <td class="mono">${escapeHTML(it.barcode || "")}</td>
-        <td>${flags.join(" ")}</td>
-        <td>${slip}<div class="hint" style="margin-top:4px;">${escapeHTML(it.printedAt || "")}</div></td>
-        <td>
-          <div class="actions">
-            <button class="smallBtn secondary" onclick="loadById('${it.id}')">Load</button>
-            <button class="smallBtn secondary" onclick="loadAndPrint('${it.id}')">Print</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-  }
-
-  function renderOrders(){
-    const tbody = $("ordersTable");
-    tbody.innerHTML = "";
-
-    const orders = [...data.orders];
-    const total = orders.length;
-    const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0);
-    $("ordersSummary").textContent = `Total orders: ${total} • Items: ${itemCount}`;
-
-    orders.sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
-
-    for(const order of orders){
-      const itemsTotal = order.items?.length || 0;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHTML(order.orderNumber || order.title || "")}</td>
-        <td>${escapeHTML(order.vendor || "")}</td>
-        <td class="mono">${escapeHTML(order.orderedOn || "")}</td>
-        <td class="mono">${itemsTotal}</td>
-        <td>${escapeHTML(order.notes || "")}</td>
-        <td>
-          <div class="actions">
-            <button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-  }
-
-  function loadOrder(id){
-    const order = data.orders.find(x => x.id === id);
-    if(!order) return;
-    loadIntoOrderEditor(order);
-  }
-
-  function loadById(id){
-    const it = data.items.find(x => x.id === id);
-    if(!it) return;
-    loadIntoEditor(it);
-    $("title").focus();
-  }
-
-  function loadAndPrint(id){
-    loadById(id);
-    printSlip();
-  }
-
-  // ----------------------------
-  // Import / Export
-  // ----------------------------
-  function exportAllData(){
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      data
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-    const filename = `book-processing-backup-${stamp}.json`;
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    setLastExportStamp(nowStamp());
-  }
-
-  function triggerImport(){
-    $("importFile").value = "";
-    $("importFile").click();
-  }
-
- function normalizeImport(raw){
-    const incoming = (raw && typeof raw === "object" && raw.data) ? raw.data : raw;
-    const items = Array.isArray(incoming?.items) ? incoming.items.map(item => ({
-      ...item,
+}
+
+function migrateData(raw){
+  const incoming = raw && typeof raw === "object" ? raw : {};
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    items: Array.isArray(incoming.items) ? incoming.items.map(migrateItem) : [],
+    orders: Array.isArray(incoming.orders) ? incoming.orders.map(migrateOrder) : [],
+    bookplateBorders: Array.isArray(incoming.bookplateBorders) ? incoming.bookplateBorders : [],
+    savedViews: incoming.savedViews && typeof incoming.savedViews === "object" ? incoming.savedViews : {}
+  };
+}
+
+function migrateOrder(order){
+  const normalized = {
+    id: order.id || orderUid(),
+    orderNumber: order.orderNumber || order.title || "",
+    vendor: order.vendor || "",
+    orderedOn: order.orderedOn || "",
+    notes: order.notes || "",
+    updatedAt: order.updatedAt || nowISO(),
+    items: Array.isArray(order.items) ? order.items.map(item => ({
+      id: item.id || uid(),
+      title: item.title || "",
       author: item.author || "",
+      barcode: item.barcode || "",
       donated: item.donated || "",
       memorial: item.memorial || "",
       notes: item.notes || "",
-      manualDone: item.manualDone === true,
-      fixDetails: item.fixDetails || "",
-      fixDone: item.fixDone === true,
-      workType: item.workType || "NEW",
-      minimalCover: item.minimalCover === true,
       paidPrice: item.paidPrice || "",
-      retailPrice: item.retailPrice || ""
-    })) : [];
-    const orders = Array.isArray(incoming?.orders) ? incoming.orders.map(order => ({
-      ...order,
-      items: Array.isArray(order.items) ? order.items.map(orderItem => ({
-        ...orderItem,
-        author: orderItem.author || "",
-        donated: orderItem.donated || "",
-        memorial: orderItem.memorial || "",
-        notes: orderItem.notes || "",
-        paidPrice: orderItem.paidPrice || "",
-        retailPrice: orderItem.retailPrice || ""
-      })) : []
-    })) : [];
-    const bookplateBorders = Array.isArray(incoming?.bookplateBorders) ? incoming.bookplateBorders : [];
-    return { items, orders, bookplateBorders };
+      retailPrice: item.retailPrice || "",
+      materialType: item.materialType || "Book"
+    })) : []
+  };
+  return normalized;
+}
+
+function migrateItem(item){
+  const it = {
+    ...emptyItem(),
+    ...item,
+    id: item.id || uid(),
+    materialType: item.materialType || "Book",
+    workType: item.workType || "NEW",
+    received: item.received || "NO",
+    cataloged: item.cataloged || "NO",
+    spine: item.spine || "NO",
+    covered: item.covered || "NO",
+    minimalCover: item.minimalCover === true,
+    manualDone: item.manualDone === true,
+    fixDone: item.fixDone === true,
+    bookplate: item.bookplate || "NO",
+    completionState: item.completionState || ((item.manualDone || item.fixDone || (item.received === "YES" && item.cataloged === "YES" && item.spine === "YES" && item.covered === "YES")) ? (item.holdName ? "Ready for hold pickup" : "Ready to shelve") : "In Progress"),
+    activity: Array.isArray(item.activity) ? item.activity : []
+  };
+  it.createdAt ||= item.updatedAt || nowISO();
+  it.statusSig = statusSignature(it);
+  it.statusChangedAt ||= item.updatedAt || it.createdAt;
+  it.updatedAt ||= nowISO();
+  return it;
+}
+
+function persist(){
+  data.schemaVersion = SCHEMA_VERSION;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  refreshAll();
+}
+
+function syncAllOrdersToItems(){
+  (data.orders || []).forEach(order => syncProcessingItemsFromOrder(order));
+}
+
+function refreshAll(){
+  renderFilterOptions();
+  renderTable();
+  renderQueue();
+  renderOrders();
+  renderOrderItems();
+  renderReceivingSession();
+  renderSummaryCards();
+  renderReporting();
+  renderPresetBadges();
+  syncReceipt();
+  renderBookplateBorders();
+  renderBookplateSheet();
+  renderSettings();
+  updateSelectedCount();
+  syncDuplicateWarnings();
+}
+
+function logActivity(item, action, note=""){
+  item.activity ||= [];
+  item.activity.unshift({ at: nowISO(), action, note });
+  item.activity = item.activity.slice(0, 60);
+}
+function ensureTimestamp(item, field){ if(!item[field]) item[field] = nowISO(); }
+
+function isGeneralFix(it){ return (it.workType || "NEW") === "FIX"; }
+function hasHold(it){ return !!(it.holdName || "").trim(); }
+function hasAdopted(it){ const n = Number(it.adoptedAmt); return isFinite(n) && n > 0; }
+function hasDonation(it){ return !!(it.donated || "").trim(); }
+function hasMemorial(it){ return !!(it.memorial || "").trim(); }
+function hasBookplateNeed(it){ return (hasAdopted(it) || hasDonation(it) || hasMemorial(it)) && (it.bookplate || "NO") !== "YES"; }
+function hasException(it){ return !!(it.exceptionType || "").trim(); }
+function isSpecial(it){ return hasHold(it) || hasAdopted(it) || hasDonation(it) || hasMemorial(it); }
+function isComplete(it){ return getWorkflowStage(it) === "Complete"; }
+function isDone(it){ return isComplete(it); }
+
+function statusSignature(it){
+  return [it.workType, it.received, it.cataloged, it.spine, it.covered, it.bookplate, it.fixDone ? "YES" : "NO", it.completionState, it.manualDone ? "YES" : "NO", it.exceptionType].join("|");
+}
+
+function getWorkflowStage(it){
+  if(isGeneralFix(it)) return it.fixDone || it.completionState !== "In Progress" ? "Complete" : "General Fix";
+  if(it.completionState && it.completionState !== "In Progress") return "Complete";
+  if(it.received !== "YES") return it.orderId ? "Awaiting Receipt" : "Ordered";
+  if(it.received === "YES" && it.cataloged !== "YES") return it.materialType === "Board game" ? "Cataloging" : "Received";
+  if(it.cataloged !== "YES") return "Cataloging";
+  if(it.spine !== "YES" && it.materialType !== "Kit") return "Spine Label";
+  if(it.covered !== "YES" && !it.minimalCover && !["DVD","Audiobook","Board game"].includes(it.materialType)) return "Covering";
+  if(hasBookplateNeed(it)) return "Bookplate";
+  return "Complete";
+}
+
+function getNextStep(it){
+  if(hasException(it)) return `Exception: ${it.exceptionType}`;
+  if(isGeneralFix(it)) return it.fixDone ? "Fix complete" : "Needs fix completion";
+  if(it.completionState && it.completionState !== "In Progress") return it.completionState;
+  if(it.received !== "YES") return "Needs receiving";
+  if(it.cataloged !== "YES") return "Needs cataloging";
+  if(it.spine !== "YES" && it.materialType !== "Kit") return "Needs spine label";
+  if(it.covered !== "YES" && !it.minimalCover && !["DVD","Audiobook","Board game"].includes(it.materialType)) return "Needs covering";
+  if(hasBookplateNeed(it)) return "Needs bookplate";
+  return hasHold(it) ? "Ready for hold pickup" : "Ready to shelve";
+}
+
+function getAgingBucket(it){
+  const d = daysSince(it.statusChangedAt || it.createdAt);
+  if(d >= 14) return "14+";
+  if(d >= 7) return "7+";
+  if(d >= 3) return "3+";
+  return "0-2";
+}
+
+function priorityScore(it){
+  let score = 0;
+  const why = [];
+  const stage = getWorkflowStage(it);
+  const age = daysSince(it.statusChangedAt || it.createdAt);
+  const stepsRemaining = [it.received !== "YES", it.cataloged !== "YES", it.spine !== "YES" && it.materialType !== "Kit", it.covered !== "YES" && !it.minimalCover && !["DVD","Audiobook","Board game"].includes(it.materialType), hasBookplateNeed(it), isGeneralFix(it) && !it.fixDone].filter(Boolean).length;
+
+  if(hasHold(it)){ score += 55; why.push("hold+55"); }
+  if(hasAdopted(it)){ score += 20; why.push("adopted+20"); }
+  if(hasDonation(it)){ score += 12; why.push("donation+12"); }
+  if(hasMemorial(it)){ score += 18; why.push("memorial+18"); }
+  if(hasException(it)){ score += 45; why.push("exception+45"); }
+  if(isGeneralFix(it)){ score += 25; why.push("generalFix+25"); }
+  if(["Cataloging","Spine Label","Covering","Bookplate","General Fix"].includes(stage)){ score += 15; why.push("midProcess+15"); }
+  if(age > 0){ const agingBoost = Math.min(50, age * 3); score += agingBoost; why.push(`aging+${agingBoost}`); }
+  if(age >= 7){ score += 15; why.push("7days+15"); }
+  if(age >= 14){ score += 25; why.push("14days+25"); }
+  if(hasHold(it) && stepsRemaining <= 1){ score += 40; why.push("holdNearComplete+40"); }
+  if(stepsRemaining === 1){ score += 22; why.push("oneStepLeft+22"); }
+  if(it.received === "YES" && it.cataloged !== "YES"){ score += 18; why.push("catalogBlock+18"); }
+  if(it.slipPrinted !== "YES"){ score += 6; why.push("slipPending+6"); }
+  if(isDone(it)){ score = 0; why.length = 0; why.push("completed"); }
+  return { score, why };
+}
+
+function getAllAssignees(){ return [...new Set(data.items.map(it => (it.assignedTo || "").trim()).filter(Boolean))].sort(); }
+function getAllLocations(){ return [...new Set(data.items.map(it => (it.currentLocation || "").trim()).filter(Boolean))].sort(); }
+
+function getFilters(){
+  return {
+    stage: $("filterStage").value,
+    specialHandling: $("filterSpecialHandling").value,
+    assignment: $("filterAssignment").value,
+    location: $("filterLocation").value,
+    generalFix: $("filterGeneralFix").value,
+    exceptions: $("filterExceptions").value,
+    slip: $("filterSlip").value,
+    orderLinked: $("filterOrderLinked").value,
+    aging: $("filterAging").value,
+    recentlyUpdated: $("filterRecentlyUpdated").value,
+    doneState: $("filterDoneState").value,
+    search: $("search").value.trim().toLowerCase(),
+    card: activeCardFilter
+  };
+}
+
+function matchCardFilter(it, card){
+  if(!card) return true;
+  switch(card){
+    case "awaitingReceipt": return getWorkflowStage(it) === "Awaiting Receipt" || getWorkflowStage(it) === "Ordered";
+    case "receivedNotCataloged": return it.received === "YES" && it.cataloged !== "YES" && !isGeneralFix(it);
+    case "catalogedNeedsSpine": return it.cataloged === "YES" && it.spine !== "YES" && !isGeneralFix(it);
+    case "needsCovering": return getWorkflowStage(it) === "Covering";
+    case "needsBookplate": return getWorkflowStage(it) === "Bookplate";
+    case "generalFixes": return isGeneralFix(it) && !isDone(it);
+    case "specialHandling": return isSpecial(it);
+    case "doneToday": return !!it.doneAt && isTodayISO(it.doneAt);
+    case "aging7": return getAgingBucket(it) === "7+" || getAgingBucket(it) === "14+";
+    case "aging14": return getAgingBucket(it) === "14+";
+    case "exceptions": return hasException(it);
+    default: return true;
+  }
+}
+
+function itemMatchesFilters(it, filters){
+  const stage = getWorkflowStage(it);
+  const searchBlob = [it.title, it.author, it.barcode, it.assignedTo, it.currentLocation, it.notes, it.orderNumber, it.exceptionType, it.handoffNotes].join(" ").toLowerCase();
+  if(filters.search && !searchBlob.includes(filters.search)) return false;
+  if(filters.stage && stage !== filters.stage) return false;
+  if(filters.specialHandling){
+    const specialMap = { hold: hasHold(it), donation: hasDonation(it), memorial: hasMemorial(it), adopted: hasAdopted(it), any: isSpecial(it), pullAside: it.completionState === "Pull aside", bookplate: hasBookplateNeed(it) };
+    if(!specialMap[filters.specialHandling]) return false;
+  }
+  if(filters.assignment && (it.assignedTo || "") !== filters.assignment) return false;
+  if(filters.location && (it.currentLocation || "") !== filters.location) return false;
+  if(filters.generalFix === "1" && !isGeneralFix(it)) return false;
+  if(filters.generalFix === "0" && isGeneralFix(it)) return false;
+  if(filters.exceptions === "1" && !hasException(it)) return false;
+  if(filters.exceptions === "0" && hasException(it)) return false;
+  if(filters.slip === "notPrinted" && it.slipPrinted === "YES") return false;
+  if(filters.slip === "printed" && it.slipPrinted !== "YES") return false;
+  if(filters.orderLinked === "1" && !it.orderId) return false;
+  if(filters.orderLinked === "0" && it.orderId) return false;
+  if(filters.aging === "7" && !["7+","14+"].includes(getAgingBucket(it))) return false;
+  if(filters.aging === "14" && getAgingBucket(it) !== "14+") return false;
+  if(filters.aging === "0-2" && getAgingBucket(it) !== "0-2") return false;
+  if(filters.recentlyUpdated === "today" && !isTodayISO(it.updatedAt)) return false;
+  if(filters.recentlyUpdated === "3days" && daysSince(it.updatedAt) > 3) return false;
+  if(filters.doneState === "open" && isDone(it)) return false;
+  if(filters.doneState === "done" && !isDone(it)) return false;
+  if(filters.doneState === "today" && !(it.doneAt && isTodayISO(it.doneAt))) return false;
+  if(!matchCardFilter(it, filters.card)) return false;
+  return true;
+}
+
+function getVisibleItems(){
+  const filters = getFilters();
+  let items = data.items.filter(it => itemMatchesFilters(it, filters));
+  if($("sessionModeEnabled").value === "1") items = items.filter(it => !isDone(it));
+  const scored = items.map(it => ({ it, ...priorityScore(it), stage: getWorkflowStage(it), nextStep: getNextStep(it) }));
+  scored.sort((a,b) => b.score - a.score || new Date(a.it.statusChangedAt).getTime() - new Date(b.it.statusChangedAt).getTime() || (b.it.updatedAt || "").localeCompare(a.it.updatedAt || ""));
+  return scored;
+}
+
+function clearFilters(){
+  activeCardFilter = "";
+  $("search").value = "";
+  $("filterStage").value = "";
+  $("filterSpecialHandling").value = "";
+  $("filterAssignment").value = "";
+  $("filterLocation").value = "";
+  $("filterGeneralFix").value = "";
+  $("filterExceptions").value = "";
+  $("filterSlip").value = "";
+  $("filterOrderLinked").value = "";
+  $("filterAging").value = "";
+  $("filterRecentlyUpdated").value = "";
+  $("filterDoneState").value = "open";
+  $("savedPreset").value = "";
+  refreshAll();
+}
+
+function applyPreset(name){
+  clearFilters();
+  if(!name || !builtinPresets[name]) return;
+  const filters = builtinPresets[name].filters || {};
+  if(filters.stage) $("filterStage").value = filters.stage;
+  if(filters.specialHandling) $("filterSpecialHandling").value = filters.specialHandling;
+  if(filters.generalFix) $("filterGeneralFix").value = filters.generalFix;
+  if(filters.aging) $("filterAging").value = filters.aging;
+  if(filters.doneState) $("filterDoneState").value = filters.doneState;
+  refreshAll();
+}
+
+function renderFilterOptions(){
+  const setOptions = (id, options, firstLabel="All") => {
+    const select = $(id);
+    const previous = select.dataset.prev ?? select.value;
+    select.innerHTML = `<option value="">${firstLabel}</option>` + options.map(opt => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`).join("");
+    if([...select.options].some(option => option.value === previous)) select.value = previous;
+    select.dataset.prev = select.value;
+  };
+  setOptions("filterStage", WORKFLOW_STAGES, "All stages");
+  $("filterSpecialHandling").innerHTML = `<option value="">All special</option><option value="any">Any special</option><option value="hold">Hold</option><option value="donation">Donation</option><option value="memorial">Memorial</option><option value="adopted">Adopted</option><option value="bookplate">Needs bookplate</option><option value="pullAside">Pull aside</option>`;
+  setOptions("filterAssignment", getAllAssignees(), "All staff");
+  setOptions("filterLocation", getAllLocations(), "All locations");
+  $("filterGeneralFix").innerHTML = `<option value="">All work types</option><option value="1">General fixes only</option><option value="0">Exclude general fixes</option>`;
+  $("filterExceptions").innerHTML = `<option value="">All items</option><option value="1">Exceptions only</option><option value="0">No exceptions</option>`;
+  $("filterSlip").innerHTML = `<option value="">All slip states</option><option value="notPrinted">Slip not printed</option><option value="printed">Slip printed</option>`;
+  $("filterOrderLinked").innerHTML = `<option value="">All items</option><option value="1">Order linked</option><option value="0">Standalone only</option>`;
+  $("filterAging").innerHTML = `<option value="">All aging</option><option value="0-2">0-2 days</option><option value="7">7+ days</option><option value="14">14+ days</option>`;
+  $("filterRecentlyUpdated").innerHTML = `<option value="">Any update time</option><option value="today">Updated today</option><option value="3days">Updated in 3 days</option>`;
+  $("filterDoneState").innerHTML = `<option value="open">Open items</option><option value="done">Completed items</option><option value="today">Done today</option><option value="">All items</option>`;
+  $("savedPreset").innerHTML = `<option value="">Choose preset</option>` + Object.entries(builtinPresets).map(([key, value]) => `<option value="${key}">${value.label}</option>`).join("");
+  $("materialType").innerHTML = MATERIAL_TYPES.map(type => `<option value="${type}">${type}</option>`).join("");
+  $("orderItemMaterialType").innerHTML = MATERIAL_TYPES.map(type => `<option value="${type}">${type}</option>`).join("");
+  $("completionState").innerHTML = COMPLETION_STATES.map(state => `<option value="${state}">${state}</option>`).join("");
+  $("exceptionType").innerHTML = EXCEPTION_TYPES.map(type => `<option value="${type}">${type || "None"}</option>`).join("");
+  const receiving = $("receivingOrderSelect");
+  const previous = receiving.value;
+  receiving.innerHTML = `<option value="">Select order</option>` + data.orders.map(order => `<option value="${order.id}">${escapeHTML(order.orderNumber || "Untitled order")}</option>`).join("");
+  if([...receiving.options].some(option => option.value === previous)) receiving.value = previous;
+}
+
+function renderSummaryCards(){
+  const cardDefs = [
+    ["awaitingReceipt","Awaiting Receipt", it => matchCardFilter(it,"awaitingReceipt")],
+    ["receivedNotCataloged","Received / Not Cataloged", it => matchCardFilter(it,"receivedNotCataloged")],
+    ["catalogedNeedsSpine","Cataloged / Needs Spine Label", it => matchCardFilter(it,"catalogedNeedsSpine")],
+    ["needsCovering","Needs Covering", it => matchCardFilter(it,"needsCovering")],
+    ["needsBookplate","Needs Bookplate", it => matchCardFilter(it,"needsBookplate")],
+    ["generalFixes","General Fixes Open", it => matchCardFilter(it,"generalFixes")],
+    ["specialHandling","Special Handling", it => matchCardFilter(it,"specialHandling")],
+    ["doneToday","Done Today", it => matchCardFilter(it,"doneToday")],
+    ["aging7","Aging 7+ days", it => matchCardFilter(it,"aging7")],
+    ["aging14","Aging 14+ days", it => matchCardFilter(it,"aging14")],
+    ["exceptions","Exception Items", it => matchCardFilter(it,"exceptions")]
+  ];
+  const wrap = $("processingCards");
+  wrap.innerHTML = "";
+  cardDefs.forEach(([key, label, predicate]) => {
+    const count = data.items.filter(predicate).length;
+    const div = document.createElement("button");
+    div.type = "button";
+    div.className = `summaryCard ${activeCardFilter === key ? "active" : ""} ${key === "exceptions" ? "exception" : ""}`;
+    div.innerHTML = `<span class="count">${count}</span><span class="label">${escapeHTML(label)}</span><span class="sub">Click to filter queue</span>`;
+    div.onclick = () => { activeCardFilter = activeCardFilter === key ? "" : key; refreshAll(); };
+    wrap.appendChild(div);
+  });
+}
+
+function renderReporting(){
+  const items = data.items;
+  const completedToday = items.filter(it => it.doneAt && isTodayISO(it.doneAt)).length;
+  const receivedToday = items.filter(it => it.receivedAt && isTodayISO(it.receivedAt)).length;
+  const catalogedToday = items.filter(it => it.catalogedAt && isTodayISO(it.catalogedAt)).length;
+  const slipsPrintedToday = items.filter(it => it.lastSlipPrintedAt && isTodayISO(it.lastSlipPrintedAt)).length;
+  const openItems = items.filter(it => !isDone(it));
+  const avgDays = openItems.length ? (openItems.reduce((sum, it) => sum + daysSince(it.createdAt), 0) / openItems.length).toFixed(1) : "0.0";
+  const oldestItem = openItems.slice().sort((a,b) => daysSince(b.createdAt) - daysSince(a.createdAt))[0];
+  const countByStage = WORKFLOW_STAGES.map(stage => `${stage}: ${items.filter(it => getWorkflowStage(it) === stage).length}`).join(" • ");
+  $("reportingPanel").innerHTML = [
+    ["Completed today", completedToday],
+    ["Received today", receivedToday],
+    ["Cataloged today", catalogedToday],
+    ["Slips printed today", slipsPrintedToday],
+    ["Average days open", avgDays],
+    ["Oldest item", oldestItem ? `${daysSince(oldestItem.createdAt)}d` : "None"],
+    ["Count by stage", countByStage]
+  ].map(([label, value]) => `<div class="metric"><div class="hint">${escapeHTML(label)}</div><div class="value">${escapeHTML(String(value))}</div></div>`).join("");
+}
+
+function renderPresetBadges(){
+  $("presetBadges").innerHTML = Object.entries(builtinPresets).map(([key, preset]) => `<button type="button" class="smallBtn secondary" onclick="applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join(" ");
+}
+
+function rowClasses(it){
+  const classes = [];
+  if(hasException(it)) classes.push("rowException");
+  if(isSpecial(it)) classes.push("rowSpecial");
+  if(["7+","14+"].includes(getAgingBucket(it)) && !isDone(it)) classes.push("rowOverdue");
+  if(isDone(it)) classes.push("rowDone");
+  return classes.join(" ");
+}
+
+function renderTable(){
+  const rows = getVisibleItems();
+  const tbody = $("itemsTable");
+  tbody.innerHTML = "";
+  const total = data.items.length;
+  const open = data.items.filter(it => !isDone(it)).length;
+  const exceptions = data.items.filter(hasException).length;
+  const doneToday = data.items.filter(it => it.doneAt && isTodayISO(it.doneAt)).length;
+  $("summary").textContent = `Visible ${rows.length} • Total ${total} • Open ${open} • Exceptions ${exceptions} • Done today ${doneToday}`;
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="9"><div class="emptyState">No items match the current filters.</div></td></tr>`;
+    return;
   }
 
+  rows.forEach(({ it, score, why, stage, nextStep }) => {
+    const title = [it.title || "", it.author || ""].filter(Boolean).join(" — ");
+    const flags = [];
+    if(isGeneralFix(it)) flags.push(`<span class="pill warn">General Fix</span>`);
+    if(hasException(it)) flags.push(`<span class="pill exception">${escapeHTML(it.exceptionType)}</span>`);
+    if(hasHold(it)) flags.push(`<span class="pill special">Hold</span>`);
+    if(hasDonation(it)) flags.push(`<span class="pill">Donation</span>`);
+    if(hasMemorial(it)) flags.push(`<span class="pill">Memorial</span>`);
+    if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
+    if(hasBookplateNeed(it)) flags.push(`<span class="pill warn">Needs bookplate</span>`);
+    if(it.completionState === "Pull aside") flags.push(`<span class="pill warn">Pull aside</span>`);
+    if(it.orderNumber) flags.push(`<span class="pill info">Order #${escapeHTML(it.orderNumber)}</span>`);
+    if(it.materialType) flags.push(`<span class="pill soft">${escapeHTML(it.materialType)}</span>`);
+    if(it.currentLocation) flags.push(`<span class="pill soft">${escapeHTML(it.currentLocation)}</span>`);
+    const slip = it.slipPrinted === "YES" ? `<span class="pill done">Printed</span>` : `<span class="pill">Not printed</span>`;
 
-  // ----------------------------
-  // Scan to load/create
-  // ----------------------------
-  $("scan").addEventListener("keydown", (e) => {
-    if(e.key !== "Enter") return;
-    e.preventDefault();
-    const bc = $("scan").value.trim();
-    if(!bc) return;
-
-    let it = data.items.find(x => (x.barcode || "").trim() === bc) || null;
-
-    if(!it){
-       it = {
-        id: uid(),
-        barcode: bc,
-        title: "",
-        author: "",
-        workType: "NEW",
-        received: "NO",
-        cataloged: "NO",
-        spine: "NO",
-        covered: "NO",
-        minimalCover: false,
-        paidPrice: "",
-        retailPrice: "",
-        manualDone: false,
-        fixDetails: "",
-        fixDone: false,
-        holdName: "",
-        adoptedAmt: "",
-        bookplate: "NO",
-        donated: "",
-        memorial: "",
-        notes: "",
-        slipPrinted: "NO",
-        printedAt: "",
-        statusSig: ["NEW","NO","NO","NO","NO","NO","NO","NO"].join("|"),
-        statusChangedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      data.items.push(it);
-      persist();
-    }
-
-    loadIntoEditor(it);
-    $("scan").value = "";
-    $("title").focus();
+    const tr = document.createElement("tr");
+    tr.className = rowClasses(it);
+    tr.innerHTML = `
+      <td><input type="checkbox" ${selectedIds.has(it.id) ? "checked" : ""} onchange="toggleSelect('${it.id}', this.checked)" /></td>
+      <td><div class="mono" style="font-weight:900;" title="${escapeHTML(why.join(', '))}">${score}</div><div class="hint">${escapeHTML(getAgingBucket(it))} • <span title="${escapeHTML(why.join(', '))}">Why this priority?</span></div></td>
+      <td><span class="pill info">${escapeHTML(stage)}</span></td>
+      <td>${escapeHTML(nextStep)}</td>
+      <td><strong>${escapeHTML(title || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div></td>
+      <td>${escapeHTML(it.assignedTo || '—')}<div class="hint">${escapeHTML(it.currentLocation || '')}</div></td>
+      <td>${flags.join(' ')}</td>
+      <td>${slip}<div class="hint">${escapeHTML(it.printedAt || '')}</div></td>
+      <td>
+        <div class="actions">
+          ${quickActionButtons(it)}
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
   });
+}
 
- // Live sync (receipt only)
- ["barcode","title","author","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone"].forEach(id => {
-    $(id).addEventListener("input", syncReceipt);
-    $(id).addEventListener("change", syncReceipt);
-  });
+function quickActionButtons(it){
+  const buttons = [];
+  if(it.received !== "YES" && !isGeneralFix(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Mark Received</button>`);
+  if(it.received === "YES" && it.cataloged !== "YES" && !isGeneralFix(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','cataloged')">Mark Cataloged</button>`);
+  if(it.cataloged === "YES" && it.spine !== "YES" && !isGeneralFix(it) && it.materialType !== "Kit") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','spine')">Spine Done</button>`);
+  if(getWorkflowStage(it) === "Covering") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','covered')">Mark Covered</button>`);
+  if(getWorkflowStage(it) === "Bookplate") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','bookplate')">Bookplate Printed</button>`);
+  if(isGeneralFix(it) && !it.fixDone) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','fixDone')">Fix Done</button>`);
+  if(!isDone(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','done')">Mark Done</button>`);
+  else buttons.push(`<button class="smallBtn ghost" onclick="quickAction('${it.id}','reopen')">Reopen</button>`);
+  buttons.push(`<button class="smallBtn secondary" onclick="loadAndPrint('${it.id}')">Reprint Slip</button>`);
+  buttons.push(`<button class="smallBtn secondary" onclick="loadById('${it.id}')">Open editor</button>`);
+  return buttons.join('');
+}
 
-  $("workType").addEventListener("change", toggleWorkTypeFields);
-
-  // Filters
-  ["search","filterSpecial","showDone","viewMode"].forEach(id => {
-    $(id).addEventListener("input", renderTable);
-    $(id).addEventListener("change", renderTable);
-  });
-
-  // Bookplate inputs
-  ["bookplateTemplate","bookplateLine1","bookplateLine2","bookplateFillSheet","bookplateStartPos","bookplateBorderOn","bookplateBorderSelect"].forEach(id => {
-    $(id).addEventListener("input", renderBookplateSheet);
-    $(id).addEventListener("change", renderBookplateSheet);
-  });
-
-  $("bookplatePadding").addEventListener("input", () => {
-    $("bookplatePaddingValue").textContent = $("bookplatePadding").value;
-    renderBookplateSheet();
-  });
-
-  $("bookplateBorderSelect").addEventListener("change", () => {
-    updateBookplateBorderPreview();
-  });
-
-  $("borderUpload").addEventListener("change", (event) => {
-    const file = event.target.files?.[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      data.bookplateBorders = data.bookplateBorders || [];
-      data.bookplateBorders.push({
-        id: uid(),
-        name: file.name,
-        dataUrl: reader.result
+function renderQueue(){
+  const board = $("queueBoard");
+  board.innerHTML = "";
+  const rows = getVisibleItems();
+  WORKFLOW_STAGES.forEach(stage => {
+    const items = rows.filter(row => row.stage === stage).slice(0, 20);
+    const col = document.createElement("div");
+    col.className = "queueColumn";
+    col.innerHTML = `<h3>${escapeHTML(stage)} <span class="hint">(${items.length})</span></h3>`;
+    if(items.length === 0){
+      col.innerHTML += `<div class="emptyState">No items in this stage.</div>`;
+    }else{
+      items.forEach(({ it, score, nextStep }) => {
+        col.innerHTML += `<div class="queueCard ${rowClasses(it)}"><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill soft">P${score}</span><span class="pill info">${escapeHTML(nextStep)}</span></div><div class="actions"><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button><button class="smallBtn secondary" onclick="quickAction('${it.id}','advance')">Advance</button></div></div>`;
       });
-      persist();
-    };
-    reader.readAsDataURL(file);
-    event.target.value = "";
-  });
-
-  window.addEventListener("afterprint", () => {
-    document.body.classList.remove("print-bookplates");
-  });
-
-  // Init
- (function init(){
-    clearEditor();
-    clearOrder();
-    toggleWorkTypeFields();
-    renderTable();
-    renderOrders();
-    syncReceipt();
-    renderSettings();
-    renderBookplateBorders();
-    clearBookplateForm();
-    $("scan").focus();
-  })();
-
-  // Tabs
-   document.querySelectorAll(".tabButton").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".tabButton").forEach(tab => tab.classList.remove("active"));
-      document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.remove("active"));
-      btn.classList.add("active");
-      const target = btn.dataset.tab;
-      const panel = document.getElementById(`tab-${target}`);
-      if(panel) panel.classList.add("active");
-      $("slipPreviewPanel").classList.toggle("hidden", target === "bookplates");
-      $("bookplatePreviewPanel").classList.toggle("hidden", target !== "bookplates");
-    });
-  });
-
-  $("importFile").addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if(!file) return;
-    try{
-      const raw = await file.text();
-      const parsed = JSON.parse(raw);
-      if(!confirm("Importing will replace all current items and orders. Continue?")) return;
-      data = normalizeImport(parsed);
-      persist();
-      clearEditor();
-      clearOrder();
-      alert("Import complete.");
-    }catch{
-      alert("Import failed. Please choose a valid JSON backup file.");
     }
+    board.appendChild(col);
   });
+  const queueMode = $("processingView").value === "queue";
+  $("tableViewWrap").classList.toggle("hidden", queueMode);
+  $("queueViewWrap").classList.toggle("hidden", !queueMode);
+}
+
+function updateSelectedCount(){ $("selectedCount").textContent = `${selectedIds.size} selected`; }
+function toggleSelect(id, checked){ checked ? selectedIds.add(id) : selectedIds.delete(id); updateSelectedCount(); }
+
+function getSelectedItems(){ return data.items.filter(it => selectedIds.has(it.id)); }
+
+function bulkAction(action){
+  const items = getSelectedItems();
+  if(items.length === 0){ alert("Select one or more items first."); return; }
+  if(action === "delete" && !confirm(`Delete ${items.length} selected items?`)) return;
+  if(action === "exportSelected") return exportSelectedItems(items);
+  if(action === "printSlips") return printItems(items);
+  items.forEach(it => {
+    if(action === "markReceived") applyQuickActionToItem(it, "received");
+    if(action === "markCataloged") applyQuickActionToItem(it, "cataloged");
+    if(action === "markCovered") applyQuickActionToItem(it, "covered");
+    if(action === "markDone") applyQuickActionToItem(it, "done");
+    if(action === "delete") data.items = data.items.filter(x => x.id !== it.id);
+  });
+  if(action === "delete") selectedIds.clear();
+  persist();
+}
+
+function exportSelectedItems(items){
+  downloadJSON({ exportedAt: nowISO(), scope: "selected", items }, `book-processing-selected-${new Date().toISOString().slice(0,10)}.json`);
+}
+function exportSubset(scope){
+  if(scope === "processing") downloadJSON({ exportedAt: nowISO(), schemaVersion: SCHEMA_VERSION, items: data.items }, `book-processing-items-${new Date().toISOString().slice(0,10)}.json`);
+  if(scope === "orders") downloadJSON({ exportedAt: nowISO(), schemaVersion: SCHEMA_VERSION, orders: data.orders }, `book-processing-orders-${new Date().toISOString().slice(0,10)}.json`);
+}
+function downloadJSON(payload, filename){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); setLastExportStamp(nowStamp());
+}
+
+function applyQuickActionToItem(it, action){
+  const beforeStage = getWorkflowStage(it);
+  switch(action){
+    case "received":
+      it.received = "YES"; ensureTimestamp(it, "receivedAt"); logActivity(it, "Received"); break;
+    case "cataloged":
+      it.received = "YES"; it.cataloged = "YES"; ensureTimestamp(it, "receivedAt"); ensureTimestamp(it, "catalogedAt"); logActivity(it, "Cataloged"); break;
+    case "spine":
+      it.received = "YES"; it.cataloged = "YES"; it.spine = "YES"; ensureTimestamp(it, "receivedAt"); ensureTimestamp(it, "catalogedAt"); ensureTimestamp(it, "spineAt"); logActivity(it, "Spine label done"); break;
+    case "covered":
+      it.received = "YES"; it.cataloged = "YES"; if(it.materialType !== "Kit") it.spine = "YES"; it.covered = "YES"; ensureTimestamp(it, "receivedAt"); ensureTimestamp(it, "catalogedAt"); ensureTimestamp(it, "spineAt"); ensureTimestamp(it, "coveredAt"); logActivity(it, "Covered"); break;
+    case "bookplate":
+      it.bookplate = "YES"; ensureTimestamp(it, "bookplatePrintedAt"); logActivity(it, "Bookplate printed"); break;
+    case "fixDone":
+      it.fixDone = true; logActivity(it, "Fix completed"); break;
+    case "done":
+      finalizeItemCompletion(it); logActivity(it, "Completed", it.completionState); break;
+    case "reopen":
+      reopenItem(it); logActivity(it, "Reopened"); break;
+    case "advance":
+      if(isGeneralFix(it)) applyQuickActionToItem(it, it.fixDone ? "done" : "fixDone");
+      else if(it.received !== "YES") applyQuickActionToItem(it, "received");
+      else if(it.cataloged !== "YES") applyQuickActionToItem(it, "cataloged");
+      else if(it.spine !== "YES" && it.materialType !== "Kit") applyQuickActionToItem(it, "spine");
+      else if(getWorkflowStage(it) === "Covering") applyQuickActionToItem(it, "covered");
+      else if(getWorkflowStage(it) === "Bookplate") applyQuickActionToItem(it, "bookplate");
+      else applyQuickActionToItem(it, "done");
+      break;
+  }
+  if(getWorkflowStage(it) !== beforeStage) it.statusChangedAt = nowISO();
+  it.updatedAt = nowISO();
+  updateItemDerivedState(it);
+}
+
+function finalizeItemCompletion(it){
+  if(isGeneralFix(it)) it.fixDone = true;
+  else {
+    it.received = "YES";
+    it.cataloged = "YES";
+    if(it.materialType !== "Kit") it.spine = "YES";
+    if(!["DVD","Audiobook","Board game"].includes(it.materialType) && !it.minimalCover) it.covered = "YES";
+    if(hasBookplateNeed(it)) it.bookplate = "YES";
+  }
+  if(it.completionState === "In Progress") it.completionState = hasHold(it) ? "Ready for hold pickup" : "Ready to shelve";
+  ensureTimestamp(it, "doneAt");
+}
+function reopenItem(it){ it.completionState = "In Progress"; it.manualDone = false; it.doneAt = ""; if(isGeneralFix(it)) it.fixDone = false; }
+
+function updateItemDerivedState(it){
+  if(it.completionState !== "In Progress" || it.manualDone) ensureTimestamp(it, "doneAt");
+  if(hasBookplateNeed(it) && it.bookplate === "YES") ensureTimestamp(it, "bookplatePrintedAt");
+  it.statusSig = statusSignature(it);
+}
+
+function quickAction(id, action){
+  const it = data.items.find(x => x.id === id);
+  if(!it) return;
+  applyQuickActionToItem(it, action);
+  persist();
+}
+
+function getEditorItem(){
+  const existing = data.items.find(x => x.id === activeId) || emptyItem({ id: activeId || uid() });
+  const draft = {
+    ...existing,
+    id: activeId || existing.id || uid(),
+    barcode: $("barcode").value.trim(),
+    title: $("title").value.trim(),
+    author: $("author").value.trim(),
+    materialType: $("materialType").value,
+    workType: $("workType").value,
+    received: $("received").value,
+    cataloged: $("cataloged").value,
+    spine: $("spine").value,
+    covered: $("covered").value,
+    minimalCover: $("minimalCover").checked,
+    paidPrice: $("paidPrice").value,
+    retailPrice: $("retailPrice").value,
+    manualDone: $("manualDone").checked,
+    fixDetails: $("fixDetails").value.trim(),
+    fixDone: $("fixDone").checked,
+    holdName: $("holdName").value.trim(),
+    adoptedAmt: $("adoptedAmt").value,
+    bookplate: $("bookplate").value,
+    donated: $("donated").value.trim(),
+    memorial: $("memorial").value.trim(),
+    notes: $("itemNotes").value.trim(),
+    slipPrinted: $("slipPrinted").value || "NO",
+    printedAt: $("printedAt").value || "",
+    completionState: $("completionState").value,
+    exceptionType: $("exceptionType").value,
+    exceptionNotes: $("exceptionNotes").value.trim(),
+    assignedTo: $("assignedTo").value.trim(),
+    currentLocation: $("currentLocation").value.trim(),
+    handoffNotes: $("handoffNotes").value.trim(),
+    updatedAt: nowISO()
+  };
+  updateItemDerivedState(draft);
+  return draft;
+}
+
+function loadIntoEditor(it){
+  activeId = it.id;
+  $("barcode").value = it.barcode || "";
+  $("title").value = it.title || "";
+  $("author").value = it.author || "";
+  $("materialType").value = it.materialType || "Book";
+  $("workType").value = it.workType || "NEW";
+  $("received").value = it.received || "NO";
+  $("cataloged").value = it.cataloged || "NO";
+  $("spine").value = it.spine || "NO";
+  $("covered").value = it.covered || "NO";
+  $("minimalCover").checked = it.minimalCover === true;
+  $("paidPrice").value = it.paidPrice ?? "";
+  $("retailPrice").value = it.retailPrice ?? "";
+  $("manualDone").checked = it.manualDone === true;
+  $("fixDetails").value = it.fixDetails || "";
+  $("fixDone").checked = it.fixDone === true;
+  $("holdName").value = it.holdName || "";
+  $("adoptedAmt").value = it.adoptedAmt ?? "";
+  $("bookplate").value = it.bookplate || "NO";
+  $("donated").value = it.donated || "";
+  $("memorial").value = it.memorial || "";
+  $("itemNotes").value = it.notes || "";
+  $("slipPrinted").value = it.slipPrinted || "NO";
+  $("printedAt").value = it.printedAt || "";
+  $("completionState").value = it.completionState || "In Progress";
+  $("exceptionType").value = it.exceptionType || "";
+  $("exceptionNotes").value = it.exceptionNotes || "";
+  $("assignedTo").value = it.assignedTo || "";
+  $("currentLocation").value = it.currentLocation || "";
+  $("handoffNotes").value = it.handoffNotes || "";
+  toggleWorkTypeFields();
+  syncReceipt();
+  renderActivityTimeline(it);
+  syncDuplicateWarnings();
+}
+
+function clearEditor(){
+  activeId = null;
+  loadIntoEditor(emptyItem());
+  activeId = null;
+  $("scan").focus();
+}
+
+function toggleWorkTypeFields(){
+  const isFix = $("workType").value === "FIX";
+  document.querySelectorAll(".generalFixHide").forEach(el => el.classList.toggle("hidden", isFix));
+  document.querySelectorAll(".generalFixOnly").forEach(el => el.classList.toggle("hidden", !isFix));
+}
+
+function saveItem(){
+  const it = getEditorItem();
+  if(!it.barcode){ alert("Barcode is required (scan or type it)."); $("barcode").focus(); return; }
+  let prev = data.items.find(x => x.id === it.id) || null;
+  if(!prev){
+    const dupeBarcode = data.items.find(x => (x.barcode || "").trim() === it.barcode && x.id !== it.id);
+    if(dupeBarcode){ prev = dupeBarcode; it.id = dupeBarcode.id; activeId = dupeBarcode.id; }
+  }
+  if(prev){
+    it.createdAt = prev.createdAt || it.createdAt;
+    it.activity = Array.isArray(prev.activity) ? [...prev.activity] : [];
+    ["receivedAt","catalogedAt","spineAt","coveredAt","bookplatePrintedAt","doneAt","lastSlipPrintedAt","orderId","orderNumber","statusChangedAt"].forEach(field => { if(prev[field] && !it[field]) it[field] = prev[field]; });
+  }else{
+    logActivity(it, "Created");
+  }
+  if(it.assignedTo && (!prev || it.assignedTo !== prev.assignedTo)) logActivity(it, "Assigned", it.assignedTo);
+  if(it.exceptionType && (!prev || it.exceptionType !== prev.exceptionType)) logActivity(it, "Exception added", it.exceptionType);
+  if(it.slipPrinted === "YES" && (!prev || prev.slipPrinted !== "YES")) ensureTimestamp(it, "lastSlipPrintedAt");
+  updateItemDerivedState(it);
+  const newSig = statusSignature(it);
+  const prevSig = prev ? statusSignature(prev) : "";
+  if(newSig !== prevSig) it.statusChangedAt = nowISO();
+  const index = data.items.findIndex(x => x.id === it.id);
+  if(index >= 0) data.items[index] = migrateItem(it);
+  else data.items.push(migrateItem(it));
+  persist();
+  if($("sessionModeEnabled").value === "1") loadNextActiveItem(it.id);
+}
+
+function deleteItem(){
+  if(!activeId){ alert("No item loaded."); return; }
+  if(!confirm("Delete this item?")) return;
+  data.items = data.items.filter(x => x.id !== activeId);
+  selectedIds.delete(activeId);
+  clearEditor();
+  persist();
+}
+
+function renderActivityTimeline(it){
+  const timeline = $("activityTimeline");
+  const activities = (it.activity || []).slice(0, 20);
+  if(activities.length === 0){ timeline.innerHTML = `<div class="emptyState">No activity yet.</div>`; return; }
+  timeline.innerHTML = activities.map(entry => `<div class="timelineItem"><strong>${escapeHTML(entry.action)}</strong><div class="hint mono">${escapeHTML(new Date(entry.at).toLocaleString())}</div><div class="hint">${escapeHTML(entry.note || '')}</div></div>`).join("");
+}
+
+function syncDuplicateWarnings(){
+  const barcode = $("barcode").value.trim();
+  const title = $("title").value.trim().toLowerCase();
+  const orderNumber = (data.items.find(x => x.id === activeId)?.orderNumber || "").trim();
+  const warnings = [];
+  if(barcode){
+    const dupes = data.items.filter(it => it.id !== activeId && (it.barcode || "").trim() === barcode);
+    if(dupes.length) warnings.push(`Duplicate barcode: ${dupes.length} existing item(s).`);
+  }
+  if(title && orderNumber){
+    const dupes = data.items.filter(it => it.id !== activeId && (it.title || "").trim().toLowerCase() === title && (it.orderNumber || "") === orderNumber);
+    if(dupes.length) warnings.push(`Duplicate title within order ${orderNumber}.`);
+  }
+  $("duplicateWarning").innerHTML = warnings.length ? `<span class="pill exception">${warnings.join(' ')}</span>` : `<span class="hint">No duplicate conflicts detected.</span>`;
+
+  const draft = getEditorItem();
+  $("editorStageBadge").textContent = getWorkflowStage(draft);
+  $("editorNextStepBadge").textContent = getNextStep(draft);
+  const stamps = [
+    ["Created", draft.createdAt], ["Received", draft.receivedAt], ["Cataloged", draft.catalogedAt], ["Spine", draft.spineAt], ["Covered", draft.coveredAt], ["Bookplate", draft.bookplatePrintedAt], ["Done", draft.doneAt], ["Slip", draft.lastSlipPrintedAt]
+  ].filter(([,v]) => !!v).map(([k,v]) => `${k}:${new Date(v).toLocaleDateString()}`);
+  $("editorHistorySummary").textContent = stamps.length ? stamps.join(" • ") : "No timestamps yet.";
+}
+
+function syncReceipt(){
+  const it = getEditorItem();
+  $("rSpecialTop").classList.toggle("hidden", !isSpecial(it) && !hasException(it));
+  const titleLine = [it.title || "", it.author || ""].filter(Boolean).join(" — ");
+  $("rTitleBlock").textContent = titleLine; $("rTitleBlock").classList.toggle("hidden", !titleLine);
+  $("rWorkType").textContent = isGeneralFix(it) ? "GENERAL FIX" : "NEW PROCESSING";
+  $("rReceived").textContent = it.received;
+  $("rCataloged").textContent = isGeneralFix(it) ? (it.fixDone ? "YES" : "NO") : it.cataloged;
+  $("rSpine").textContent = isGeneralFix(it) ? "N/A" : it.spine;
+  $("rCovered").textContent = isGeneralFix(it) ? (it.fixDetails || "N/A") : it.covered;
+  $("rMinimalCover").textContent = !isGeneralFix(it) && it.minimalCover ? "✓" : "";
+  $("rPaidPrice").textContent = formatMoney(it.paidPrice);
+  $("rRetailPrice").textContent = formatMoney(it.retailPrice);
+  const hold = (it.holdName || "").trim(); $("rHoldName").textContent = hold; $("rHoldRow").classList.toggle("hidden", !hold);
+  const adopted = formatMoney(it.adoptedAmt); $("rAdoptedAmt").textContent = adopted; $("rAdoptedRow").classList.toggle("hidden", !adopted);
+  $("rBookplate").textContent = it.bookplate || "NO"; $("rBookplateRow").classList.toggle("hidden", !adopted);
+  const donation = (it.donated || "").trim(); $("rDonatedName").textContent = donation; $("rDonatedRow").classList.toggle("hidden", !donation);
+  const memorial = (it.memorial || "").trim(); $("rMemorial").textContent = memorial; $("rMemorialRow").classList.toggle("hidden", !memorial);
+  const notes = (it.notes || "").trim(); $("rNotes").textContent = notes; $("rNotesRow").classList.toggle("hidden", !notes);
+  $("rBarcodeText").textContent = it.barcode || "";
+  if(it.barcode){ try{ JsBarcode("#barcodeSvg", it.barcode, { format:"CODE128", width:2, height:44, displayValue:false, margin:0 }); }catch{} }
+  $("rPrintedAt").textContent = it.printedAt || "";
+  syncDuplicateWarnings();
+}
+
+function printSlip(){
+  const draft = getEditorItem();
+  $("slipPrinted").value = "YES";
+  $("printedAt").value = nowStamp();
+  const hadActive = !!activeId;
+  saveItem();
+  const saved = data.items.find(x => x.id === activeId || x.barcode === draft.barcode);
+  if(saved){ saved.slipPrinted = "YES"; saved.printedAt = $("printedAt").value; saved.lastSlipPrintedAt = nowISO(); logActivity(saved, "Slip printed"); saved.updatedAt = nowISO(); }
+  persist();
+  syncReceipt();
+  window.print();
+  if(hadActive && $("sessionModeEnabled").value === "1") loadNextActiveItem(activeId);
+}
+
+function slipHTML(it, barcodeId){
+  const titleLine = [it.title || "", it.author || ""].filter(Boolean).join(" — ");
+  const adoptedTxt = formatMoney(it.adoptedAmt);
+  return `
+    <div class="receipt">
+      <div class="r-special${isSpecial(it) || hasException(it) ? "" : " hidden"}">⚠ SPECIAL HANDLING</div>
+      <div class="r-title">PROCESSING STATUS</div>
+      <div class="r-rule"></div>
+      <div class="r-block${titleLine ? "" : " hidden"}">${escapeHTML(titleLine)}</div>
+      <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right">${isGeneralFix(it) ? "GENERAL FIX" : "NEW PROCESSING"}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right">${escapeHTML(it.received || "NO")}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right">${escapeHTML(isGeneralFix(it) ? (it.fixDone ? "YES" : "NO") : (it.cataloged || "NO"))}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Spine label</div><div class="r-right">${escapeHTML(isGeneralFix(it) ? "N/A" : (it.spine || "NO"))}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Covered</div><div class="r-right">${escapeHTML(isGeneralFix(it) ? ((it.fixDetails || "").trim() || "N/A") : (it.covered || "NO"))}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Minimal cover</div><div class="r-right">${!isGeneralFix(it) && it.minimalCover ? "✓" : ""}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Paid price</div><div class="r-right">${escapeHTML(formatMoney(it.paidPrice))}</div></div>
+      <div class="r-line"><div class="r-left r-sub">Retail price</div><div class="r-right">${escapeHTML(formatMoney(it.retailPrice))}</div></div>
+      <div class="r-rule"></div>
+      <div class="r-line${it.holdName ? "" : " hidden"}"><div class="r-left r-sub">HOLD</div><div class="r-right">${escapeHTML(it.holdName || "")}</div></div>
+      <div class="r-line${adoptedTxt ? "" : " hidden"}"><div class="r-left r-sub">ADOPTED</div><div class="r-right">${escapeHTML(adoptedTxt)}</div></div>
+      <div class="r-line${adoptedTxt ? "" : " hidden"}"><div class="r-left r-sub">BOOKPLATE</div><div class="r-right">${escapeHTML(it.bookplate || "NO")}</div></div>
+      <div class="r-line${it.donated ? "" : " hidden"}"><div class="r-left r-sub">DONATION</div><div class="r-right">${escapeHTML(it.donated || "")}</div></div>
+      <div class="r-line${it.memorial ? "" : " hidden"}"><div class="r-left r-sub">MEMORIAL</div><div class="r-right">${escapeHTML(it.memorial || "")}</div></div>
+      <div class="r-line${it.notes ? "" : " hidden"}"><div class="r-left r-sub">NOTES</div><div class="r-right">${escapeHTML(it.notes || "")}</div></div>
+      <div class="r-rule"></div>
+      <svg id="${barcodeId}"></svg>
+      <div class="r-line"><div class="r-left r-sub">Barcode</div><div class="r-right">${escapeHTML(it.barcode || "")}</div></div>
+      <div class="r-rule"></div>
+      <div class="r-line"><div class="r-left r-sub">Printed for</div><div class="r-right">${escapeHTML(it.printedAt || "")}</div></div>
+    </div>`;
+}
+
+function printItems(items){
+  const list = $("orderSlipPrintList");
+  const stamp = nowStamp();
+  list.innerHTML = "";
+  items.forEach((item, index) => {
+    item.slipPrinted = "YES"; item.printedAt = stamp; item.lastSlipPrintedAt = nowISO(); item.updatedAt = nowISO(); logActivity(item, "Slip printed");
+    const wrapper = document.createElement("div");
+    const barcodeId = `bulkSlip_${index}_${Date.now()}`;
+    wrapper.innerHTML = slipHTML(item, barcodeId);
+    list.appendChild(wrapper.firstElementChild);
+    if(item.barcode){ try{ JsBarcode(`#${barcodeId}`, item.barcode, { format:"CODE128", width:2, height:44, displayValue:false, margin:0 }); }catch{} }
+  });
+  const cleanup = () => { document.body.classList.remove("print-order-slips"); list.innerHTML = ""; window.removeEventListener("afterprint", cleanup); };
+  window.addEventListener("afterprint", cleanup);
+  persist();
+  document.body.classList.add("print-order-slips");
+  window.print();
+}
+
+function loadNextActiveItem(currentId){
+  const next = getVisibleItems().find(row => row.it.id !== currentId && !isDone(row.it));
+  if(next) loadIntoEditor(next.it);
+  else clearEditor();
+}
+
+function getEditorOrder(){
+  return { id: activeOrderId || orderUid(), orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim(), orderedOn: $("orderPlaced").value, notes: $("orderNotes").value.trim(), items: [...orderItems], updatedAt: nowISO() };
+}
+function loadIntoOrderEditor(order){ activeOrderId = order.id; $("orderNumber").value = order.orderNumber || ""; $("orderVendor").value = order.vendor || ""; $("orderPlaced").value = order.orderedOn || ""; $("orderNotes").value = order.notes || ""; orderItems = Array.isArray(order.items) ? structuredCloneSafe(order.items) : []; renderOrderItems(); }
+function clearOrder(){ activeOrderId = null; ["orderNumber","orderVendor","orderPlaced","orderNotes","orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; orderItems = []; renderOrderItems(); }
+function addOrderItem(){ const title = $("orderItemTitle").value.trim(); const barcode = $("orderItemBarcode").value.trim(); if(!title && !barcode){ alert("Enter an item title or barcode."); return; } orderItems.push({ id: uid(), title, author: $("orderItemAuthor").value.trim(), barcode, donated: $("orderItemDonation").value.trim(), memorial: $("orderItemMemorial").value.trim(), notes: $("orderItemNotes").value.trim(), paidPrice: $("orderItemPaidPrice").value, retailPrice: $("orderItemRetailPrice").value, materialType: $("orderItemMaterialType").value }); clearOrderItemFields(); renderOrderItems(); }
+function clearOrderItemFields(){ ["orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; }
+function removeOrderItem(id){ orderItems = orderItems.filter(item => item.id !== id); renderOrderItems(); }
+function saveOrder(){ const order = getEditorOrder(); if(!order.orderNumber){ alert("Order # is required."); return; } const index = data.orders.findIndex(x => x.id === order.id); if(index >= 0) data.orders[index] = migrateOrder(order); else data.orders.push(migrateOrder(order)); syncProcessingItemsFromOrder(order); persist(); }
+function deleteOrder(){ if(!activeOrderId){ alert("No order loaded."); return; } if(!confirm("Delete this order?")) return; data.orders = data.orders.filter(x => x.id !== activeOrderId); data.items = data.items.filter(x => x.orderId !== activeOrderId); clearOrder(); persist(); }
+
+function renderOrderItems(){
+  const tbody = $("orderItemsTable"); tbody.innerHTML = "";
+  if(orderItems.length === 0){ tbody.innerHTML = `<tr><td colspan="10"><div class="emptyState">No items in this order yet.</div></td></tr>`; return; }
+  orderItems.forEach((item, index) => {
+    tbody.innerHTML += `<tr><td>${escapeHTML(item.title || '')}</td><td>${escapeHTML(item.author || '')}</td><td class="mono">${escapeHTML(item.barcode || '')}</td><td>${escapeHTML(item.materialType || 'Book')}</td><td>${escapeHTML(item.donated || '')}</td><td>${escapeHTML(item.memorial || '')}</td><td class="mono">${escapeHTML(formatMoney(item.paidPrice))}</td><td class="mono">${escapeHTML(formatMoney(item.retailPrice))}</td><td>${escapeHTML(item.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="printOrderItemSlip('${item.id}', ${index})">Print slip</button><button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button></div></td></tr>`;
+  });
+}
+
+function syncProcessingItemsFromOrder(order){
+  const ord = migrateOrder(order);
+  const orderItemIds = new Set(ord.items.map(item => item.id));
+  data.items = data.items.filter(item => item.orderId !== ord.id || orderItemIds.has(item.id));
+  ord.items.forEach((orderItem, index) => {
+    const generatedBarcode = (!orderItem.barcode && ord.orderNumber) ? `ORDER-${ord.orderNumber}-${index + 1}` : "";
+    if(generatedBarcode) orderItem.barcode = generatedBarcode;
+    const existing = data.items.find(item => item.id === orderItem.id);
+    const item = migrateItem(existing || emptyItem({ id: orderItem.id }));
+    item.barcode = orderItem.barcode || item.barcode || generatedBarcode;
+    item.title = orderItem.title || item.title;
+    item.author = orderItem.author || item.author;
+    item.donated = orderItem.donated || item.donated;
+    item.memorial = orderItem.memorial || item.memorial;
+    item.notes = orderItem.notes || item.notes;
+    item.paidPrice = orderItem.paidPrice || item.paidPrice;
+    item.retailPrice = orderItem.retailPrice || item.retailPrice;
+    item.materialType = orderItem.materialType || item.materialType || "Book";
+    item.orderId = ord.id;
+    item.orderNumber = ord.orderNumber;
+    item.updatedAt = nowISO();
+    if(!existing) logActivity(item, "Created", `Imported from order ${ord.orderNumber}`);
+    const idx = data.items.findIndex(x => x.id === item.id);
+    if(idx >= 0) data.items[idx] = item; else data.items.push(item);
+  });
+}
+
+function orderProgress(order){
+  const linked = data.items.filter(item => item.orderId === order.id);
+  const total = order.items?.length || 0;
+  const received = linked.filter(item => item.received === "YES").length;
+  const completed = linked.filter(item => isDone(item)).length;
+  return { total, received, completed };
+}
+
+function renderOrders(){
+  const tbody = $("ordersTable"); tbody.innerHTML = "";
+  const orders = [...data.orders].sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0);
+  $("ordersSummary").textContent = `Total orders: ${orders.length} • Items: ${itemCount}`;
+  if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="6"><div class="emptyState">No orders saved yet.</div></td></tr>`; return; }
+  orders.forEach(order => {
+    const progress = orderProgress(order);
+    tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}</td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td class="mono">${progress.received}/${progress.total} received • ${progress.completed} complete</td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary" onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button><button class="smallBtn secondary" onclick="printOrderSlips('${order.id}')">Print all slips</button></div></td></tr>`;
+  });
+}
+
+function loadOrder(id){ const order = data.orders.find(x => x.id === id); if(order) loadIntoOrderEditor(order); $("receivingOrderSelect").value = id; renderReceivingSession(); }
+
+function renderReceivingSession(){
+  const orderId = $("receivingOrderSelect").value;
+  const list = $("receivingList");
+  if(!orderId){ $("receivingProgress").textContent = "No order selected."; list.innerHTML = `<div class="emptyState">Choose an order to start receiving.</div>`; return; }
+  const order = data.orders.find(x => x.id === orderId);
+  if(!order){ list.innerHTML = `<div class="emptyState">Order not found.</div>`; return; }
+  syncProcessingItemsFromOrder(order);
+  const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean);
+  const received = linked.filter(it => it.received === "YES").length;
+  $("receivingProgress").textContent = `${received}/${linked.length} received • ${linked.filter(it => isDone(it)).length} complete`;
+  list.innerHTML = "";
+  linked.forEach(it => {
+    list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(it.exceptionType)}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button></div></div>`;
+  });
+  if(linked.length === 0) list.innerHTML = `<div class="emptyState">This order has no items.</div>`;
+}
+
+function flagMissing(id){ const item = data.items.find(x => x.id === id); if(!item) return; item.exceptionType = "Missing from shipment"; item.exceptionNotes = item.exceptionNotes || "Flagged during receiving session."; logActivity(item, "Exception added", item.exceptionType); persist(); }
+function flagExtra(orderId){
+  const barcode = prompt("Enter barcode for extra item:");
+  if(!barcode) return;
+  const order = data.orders.find(x => x.id === orderId); if(!order) return;
+  const item = emptyItem({ barcode, title:"Extra received item", orderId, orderNumber: order.orderNumber, received:"YES", receivedAt: nowISO(), exceptionType:"Wrong edition", exceptionNotes:"Flagged as extra during receiving session." });
+  logActivity(item, "Created", "Extra item added during receiving");
+  data.items.push(item); persist();
+}
+function receiveAllItemsForOrder(orderId){ const order = data.orders.find(x => x.id === orderId); if(!order) return; syncProcessingItemsFromOrder(order); order.items.forEach(item => { const linked = data.items.find(it => it.id === item.id); if(linked) applyQuickActionToItem(linked, "received"); }); persist(); }
+function receiveAllItemsForSelectedOrder(){ const id = $("receivingOrderSelect").value; if(id) receiveAllItemsForOrder(id); }
+function printSelectedOrderSlips(){ const orderId = $("receivingOrderSelect").value; if(orderId) printOrderSlips(orderId); }
+
+function printOrderSlips(orderId){
+  const order = data.orders.find(x => x.id === orderId); if(!order) return;
+  syncProcessingItemsFromOrder(order);
+  const linked = data.items.filter(item => item.orderId === orderId);
+  if(linked.length === 0){ alert(`No saved processing items found for order ${order.orderNumber}.`); return; }
+  printItems(linked);
+}
+
+function printOrderItemSlip(orderItemId, fallbackIndex = 0){
+  const orderItem = orderItems.find(item => item.id === orderItemId); if(!orderItem) return;
+  const orderNumber = $("orderNumber").value.trim();
+  const barcode = orderItem.barcode || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : "");
+  const temp = migrateItem({ ...emptyItem({ id: orderItem.id }), ...orderItem, barcode, workType:"NEW", slipPrinted:"YES", printedAt: nowStamp(), lastSlipPrintedAt: nowISO() });
+  printItems([temp]);
+}
+
+function loadById(id){ const it = data.items.find(x => x.id === id); if(!it) return; loadIntoEditor(it); $("title").focus(); }
+function loadAndPrint(id){ loadById(id); printSlip(); }
+
+function exportAllData(){ downloadJSON({ exportedAt: nowISO(), schemaVersion: SCHEMA_VERSION, data }, `book-processing-backup-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`); }
+function getLastExportStamp(){ return localStorage.getItem(EXPORT_TIMESTAMP_KEY) || ""; }
+function setLastExportStamp(value){ localStorage.setItem(EXPORT_TIMESTAMP_KEY, value); renderSettings(); }
+function renderSettings(){ $("lastExportStamp").textContent = getLastExportStamp() || "Never"; $("schemaVersionValue").textContent = String(SCHEMA_VERSION); }
+function triggerImport(){ $("importFile").value = ""; $("importFile").click(); }
+function normalizeImport(raw){ const incoming = (raw && typeof raw === 'object' && raw.data) ? raw.data : raw; return migrateData(incoming); }
+
+const bookplateTemplates = { donated: "Donated by", memory: "In memory of", given: "Given by" };
+function renderBookplateBorders(){
+  const select = $("bookplateBorderSelect"); const list = $("borderList"); const borders = data.bookplateBorders || []; const prev = select.value;
+  select.innerHTML = borders.length ? `<option value="">No border</option>` + borders.map(border => `<option value="${border.id}">${escapeHTML(border.name || 'Border')}</option>`).join("") : `<option value="">No borders uploaded</option>`;
+  if([...select.options].some(option => option.value === prev)) select.value = prev;
+  updateBookplateBorderPreview();
+  if(!borders.length){ list.innerHTML = `<div class="hint">No borders uploaded yet.</div>`; return; }
+  list.innerHTML = `<table><thead><tr><th>Preview</th><th>Name</th><th>Actions</th></tr></thead><tbody>${borders.map(border => `<tr><td><img src="${border.dataUrl}" alt="${escapeHTML(border.name || 'Border')}" style="max-width:80px;max-height:80px;border:1px solid #eee;border-radius:6px;background:#fff;" /></td><td>${escapeHTML(border.name || '')}</td><td><button class="smallBtn danger" onclick="removeBorder('${border.id}')">Delete</button></td></tr>`).join('')}</tbody></table>`;
+}
+function updateBookplateBorderPreview(){ const preview = $("bookplateBorderPreview"); const selected = (data.bookplateBorders || []).find(border => border.id === $("bookplateBorderSelect").value); preview.src = selected?.dataUrl || ""; preview.style.visibility = selected ? "visible" : "hidden"; }
+function removeBorder(id){ data.bookplateBorders = (data.bookplateBorders || []).filter(border => border.id !== id); persist(); }
+function getBookplateState(){ return { template: $("bookplateTemplate").value, line1: $("bookplateLine1").value.trim(), line2: $("bookplateLine2").value.trim(), fillSheet: $("bookplateFillSheet").checked, startPos: Number($("bookplateStartPos").value || 1), borderOn: $("bookplateBorderOn").checked, borderId: $("bookplateBorderSelect").value, padding: Number($("bookplatePadding").value || 0) }; }
+function buildBookplateLines(state){ const templateLine = bookplateTemplates[state.template] || "Donated by"; return [templateLine, state.line1, state.line2].filter(line => line.trim().length > 0); }
+function renderBookplateSheet(){ const sheet = $("bookplateSheet"); const state = getBookplateState(); const lines = buildBookplateLines(state); const selectedBorder = (data.bookplateBorders || []).find(border => border.id === state.borderId); sheet.style.setProperty("--plate-padding", `${state.padding}px`); sheet.innerHTML = ""; for(let i = 1; i <= 6; i += 1){ const label = document.createElement("div"); label.className = "bookplateLabel"; const shouldFill = state.fillSheet ? i >= state.startPos : i === state.startPos; if(shouldFill){ if(state.borderOn && selectedBorder){ const img = document.createElement("img"); img.className = "bookplateBorder"; img.alt = "Bookplate border"; img.src = selectedBorder.dataUrl; label.appendChild(img); } const content = document.createElement("div"); content.className = "bookplateContent"; lines.forEach((line, index) => { const div = document.createElement("div"); div.className = `bookplateLine${index === 0 ? ' template' : ''}`; div.textContent = line; content.appendChild(div); }); label.appendChild(content); }else label.classList.add("empty"); sheet.appendChild(label); } }
+function clearBookplateForm(){ $("bookplateTemplate").value = "donated"; $("bookplateLine1").value = ""; $("bookplateLine2").value = ""; $("bookplateFillSheet").checked = true; $("bookplateStartPos").value = "1"; $("bookplateBorderOn").checked = true; $("bookplatePadding").value = "16"; $("bookplatePaddingValue").textContent = "16"; $("bookplateBorderSelect").value = (data.bookplateBorders || [])[0]?.id || ""; updateBookplateBorderPreview(); renderBookplateSheet(); }
+function printBookplates(){ document.body.classList.add("print-bookplates"); window.print(); }
+
+$("scan").addEventListener("keydown", (e) => {
+  if(e.key !== "Enter") return; e.preventDefault();
+  const bc = $("scan").value.trim(); if(!bc) return;
+  let it = data.items.find(x => (x.barcode || "").trim() === bc) || null;
+  if(!it){ it = emptyItem({ barcode: bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); persist(); }
+  loadIntoEditor(it); $("scan").value = ""; $("title").focus();
+});
+
+["barcode","title","author","materialType","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone","completionState","exceptionType","exceptionNotes","assignedTo","currentLocation","handoffNotes"].forEach(id => { $(id).addEventListener("input", syncReceipt); $(id).addEventListener("change", syncReceipt); });
+["search","filterStage","filterSpecialHandling","filterAssignment","filterLocation","filterGeneralFix","filterExceptions","filterSlip","filterOrderLinked","filterAging","filterRecentlyUpdated","filterDoneState","processingView","sessionModeEnabled","savedPreset"].forEach(id => { $(id).addEventListener("input", refreshAll); $(id).addEventListener("change", refreshAll); });
+$("workType").addEventListener("change", toggleWorkTypeFields);
+$("selectAllVisible").addEventListener("change", (event) => { getVisibleItems().forEach(row => event.target.checked ? selectedIds.add(row.it.id) : selectedIds.delete(row.it.id)); updateSelectedCount(); renderTable(); });
+$("receivingOrderSelect").addEventListener("change", renderReceivingSession);
+["bookplateTemplate","bookplateLine1","bookplateLine2","bookplateFillSheet","bookplateStartPos","bookplateBorderOn","bookplateBorderSelect"].forEach(id => { $(id).addEventListener("input", renderBookplateSheet); $(id).addEventListener("change", renderBookplateSheet); });
+$("bookplatePadding").addEventListener("input", () => { $("bookplatePaddingValue").textContent = $("bookplatePadding").value; renderBookplateSheet(); });
+$("bookplateBorderSelect").addEventListener("change", updateBookplateBorderPreview);
+$("borderUpload").addEventListener("change", (event) => { const file = event.target.files?.[0]; if(!file) return; const reader = new FileReader(); reader.onload = () => { data.bookplateBorders ||= []; data.bookplateBorders.push({ id: uid(), name: file.name, dataUrl: reader.result }); persist(); }; reader.readAsDataURL(file); event.target.value = ""; });
+window.addEventListener("afterprint", () => { document.body.classList.remove("print-bookplates"); });
+document.querySelectorAll(".tabButton").forEach(btn => { btn.addEventListener("click", () => { document.querySelectorAll(".tabButton").forEach(tab => tab.classList.remove("active")); document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.remove("active")); btn.classList.add("active"); const target = btn.dataset.tab; $("tab-" + target).classList.add("active"); $("slipPreviewPanel").classList.toggle("hidden", target === "bookplates"); $("bookplatePreviewPanel").classList.toggle("hidden", target !== "bookplates"); }); });
+
+$("importFile").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0]; if(!file) return;
+  try{
+    const raw = await file.text();
+    const parsed = JSON.parse(raw);
+    pendingImportData = normalizeImport(parsed);
+    $("importPreviewSummary").textContent = `Import preview: ${pendingImportData.items.length} items, ${pendingImportData.orders.length} orders, ${pendingImportData.bookplateBorders.length} borders, schema v${SCHEMA_VERSION}.`;
+    if(!confirm(`Preview loaded. Replace current data with ${pendingImportData.items.length} items and ${pendingImportData.orders.length} orders?`)) return;
+    data = pendingImportData;
+    pendingImportData = null;
+    persist(); clearEditor(); clearOrder(); alert("Import complete.");
+  }catch{
+    alert("Import failed. Please choose a valid JSON backup file.");
+  }
+});
+
+(function init(){
+  syncAllOrdersToItems();
+  renderFilterOptions();
+  clearEditor();
+  clearOrder();
+  $("filterDoneState").value = "open";
+  toggleWorkTypeFields();
+  refreshAll();
+  clearBookplateForm();
+  $("scan").focus();
+})();
 </script>
 </body>
 </html>
-
-</html>
-
-
-</html>
-
