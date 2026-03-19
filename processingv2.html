@@ -142,6 +142,10 @@ Changelog - Book Processing Dashboard v2.3
 
   .previewPanelHeader{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
   .previewPanelHeader h2{ flex:1 1 auto; }
+  .previewPanelControls{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .segmentControl{ display:inline-flex; gap:6px; padding:6px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); }
+  .segmentBtn{ padding:8px 12px; border-radius:10px; border:1px solid transparent; background:transparent; color:var(--ink-soft); font-weight:800; }
+  .segmentBtn.active{ background:#fff; color:var(--ink); border-color:var(--border-strong); box-shadow:var(--shadow-soft); }
   #slipPreviewPanel{ min-width:0; }
   #slipPreviewPanel .receipt{ width:min(100%, var(--paper)); margin:0 auto; }
 
@@ -236,6 +240,11 @@ Changelog - Book Processing Dashboard v2.3
     body.print-slip #slipPreviewPanel *{ visibility:visible !important; }
     body.print-slip #slipPreviewPanel{ display:block !important; position:absolute; left:0; top:0; width:80mm; margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
     body.print-slip #slipPreviewPanel{ min-height:auto; }
+    body.print-slip .previewPanelHeader,
+    body.print-slip .previewPanelControls,
+    body.print-slip .previewPanelControls button,
+    body.print-slip #toggleSlipPreviewBtn,
+    body.print-slip #toggleSlipPreviewMainBtn,
     body.print-slip .printpanel h2{ display:none !important; }
     body.print-slip .receiptWrap{ display:block; width:80mm; margin:0; padding:0; }
     body.print-slip .receipt{ width:80mm; max-width:80mm; border:none; border-radius:0; padding:4mm 4mm 2mm; margin:0; min-height:0; box-shadow:none; }
@@ -454,7 +463,7 @@ Changelog - Book Processing Dashboard v2.3
             <div id="duplicateWarning" class="duplicateAlert"></div>
             <div class="editorSections">
               <details class="editorSection" open>
-                <summary><span>Basic Info</span><span class="hint">Barcode, title, author, type</span></summary>
+                <summary><span>Basic Info</span><span class="hint">Barcode, title, author, type, and pricing</span></summary>
                 <div class="editorSectionBody">
                   <div class="row"><label for="barcode">Barcode</label><input id="barcode" class="mono" type="text" placeholder="Scan or type barcode" /></div>
                   <div class="row"><label for="title">Title</label><input id="title" type="text" placeholder="Title" /></div>
@@ -463,6 +472,10 @@ Changelog - Book Processing Dashboard v2.3
                     <div><label for="materialType">Material type</label><select id="materialType"></select></div>
                     <div><label for="workType">Work type</label><select id="workType"><option value="NEW">New processing</option><option value="FIX">General fixes</option></select></div>
                     <div><label for="completionState">Completion state</label><select id="completionState"></select></div>
+                  </div>
+                  <div class="inlineGrid2">
+                    <div><label for="paidPrice">Paid $</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                    <div><label for="retailPrice">Retail $</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
                   </div>
                 </div>
               </details>
@@ -502,15 +515,13 @@ Changelog - Book Processing Dashboard v2.3
               </details>
 
               <details class="editorSection" id="specialHandlingSection">
-                <summary><span>Special Handling</span><span class="hint">Hold, donation, memorial, prices, and work-location details</span></summary>
+                <summary><span>Special Handling</span><span class="hint">Hold, donor, memorial, and work-location details</span></summary>
                 <div class="editorSectionBody">
                   <div class="inlineGrid3 generalFixHide">
                     <div><label for="holdName">Hold for</label><input id="holdName" type="text" placeholder="Name or cardholder" /></div>
                     <div><label for="adoptedAmt">Adopted $</label><input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-                    <div><label for="donated">Donation</label><input id="donated" type="text" placeholder="Donor name" /></div>
+                    <div><label for="donated">Donor</label><input id="donated" type="text" placeholder="Donor name" /></div>
                     <div><label for="memorial">Memorial</label><input id="memorial" type="text" placeholder="In memory/honor of" /></div>
-                    <div><label for="paidPrice">Paid price</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-                    <div><label for="retailPrice">Retail price</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
                   </div>
                   <div class="inlineGrid3">
                     <div><label for="assignedTo">Assigned to</label><input id="assignedTo" type="text" placeholder="Staff initials or name" /></div>
@@ -533,7 +544,7 @@ Changelog - Book Processing Dashboard v2.3
                 </div>
               </details>
 
-              <details class="editorSection" open>
+              <details class="editorSection" id="historySection">
                 <summary><span>History</span><span class="hint">Timeline and timestamps</span></summary>
                 <div class="editorSectionBody">
                   <div>
@@ -602,6 +613,22 @@ Changelog - Book Processing Dashboard v2.3
       </div>
 
       <div class="section">
+        <div class="sectionHeader">
+          <div class="sectionIntro">
+            <h2>Orders workspace</h2>
+            <p class="hint">Switch between current and archived orders without changing the main Book Orders tab.</p>
+          </div>
+          <div class="previewPanelControls">
+            <div class="segmentControl" role="tablist" aria-label="Order groups">
+              <button class="segmentBtn active" type="button" id="ordersCurrentBtn" onclick="setOrdersView('current')">Current Orders</button>
+              <button class="segmentBtn" type="button" id="ordersArchivedBtn" onclick="setOrdersView('archived')">Archived Orders</button>
+            </div>
+          </div>
+        </div>
+        <div id="ordersSummary" class="hint"></div>
+      </div>
+
+      <div class="section">
         <h2>Receiving session mode</h2>
         <div class="inlineGrid3">
           <div><label for="receivingOrderSelect">Order</label><select id="receivingOrderSelect"></select></div>
@@ -613,7 +640,6 @@ Changelog - Book Processing Dashboard v2.3
 
       <div class="section">
         <h2>Orders</h2>
-        <div id="ordersSummary" class="hint"></div>
         <div class="tableWrap">
           <table>
             <thead><tr><th>Order #</th><th>Vendor</th><th>Ordered</th><th>Status</th><th>Progress</th><th>Notes</th><th>Actions</th></tr></thead>
@@ -667,7 +693,9 @@ Changelog - Book Processing Dashboard v2.3
   <div class="panel printpanel hidden" id="slipPreviewPanel">
     <div class="previewPanelHeader">
       <h2>Slip Preview</h2>
-      <button class="secondary smallBtn" id="toggleSlipPreviewBtn" type="button" onclick="toggleSlipPreview()" aria-expanded="true">Hide preview</button>
+      <div class="previewPanelControls">
+        <button class="secondary smallBtn" id="toggleSlipPreviewBtn" type="button" onclick="toggleSlipPreview()" aria-expanded="true">Hide preview</button>
+      </div>
     </div>
     <div class="receiptWrap">
       <div class="receipt" id="receipt">
@@ -690,6 +718,8 @@ Changelog - Book Processing Dashboard v2.3
         <div id="rBookplateRow" class="r-line hidden"><div class="r-left r-sub">BOOKPLATE</div><div class="r-right" id="rBookplate"></div></div>
         <div id="rDonatedRow" class="r-line hidden"><div class="r-left r-sub">DONATION</div><div class="r-right" id="rDonatedName"></div></div>
         <div id="rMemorialRow" class="r-line hidden"><div class="r-left r-sub">MEMORIAL</div><div class="r-right" id="rMemorial"></div></div>
+        <div id="rOrderNumberRow" class="r-line hidden"><div class="r-left r-sub">ORDER #</div><div class="r-right" id="rOrderNumber"></div></div>
+        <div id="rVendorRow" class="r-line hidden"><div class="r-left r-sub">VENDOR</div><div class="r-right" id="rVendor"></div></div>
         <div id="rNotesRow" class="r-line hidden"><div class="r-left r-sub">NOTES</div><div class="r-right" id="rNotes"></div></div>
         <div class="r-rule"></div>
         <svg id="barcodeSvg"></svg>
@@ -712,6 +742,7 @@ const $ = (id) => document.getElementById(id);
 const STORAGE_KEY = "bp_v2_priority";
 const EXPORT_TIMESTAMP_KEY = "bp_v2_priority_last_export";
 const SCHEMA_VERSION = 2;
+const ORDER_VIEWS = ["current", "archived"];
 const defaultData = { schemaVersion: SCHEMA_VERSION, items: [], orders: [], bookplateBorders: [], savedViews: {} };
 const MATERIAL_TYPES = ["Book", "DVD", "Audiobook", "Kit", "Board game"];
 const COMPLETION_STATES = ["In Progress", "Ready to shelve", "Ready for hold pickup", "Pull aside", "Display ready", "Archived"];
@@ -729,6 +760,7 @@ let recentScannedIds = [];
 let filtersExpanded = true;
 let pendingSlipCleanup = null;
 let slipPreviewCollapsed = false;
+let ordersView = "current";
 
 
 function structuredCloneSafe(value){ return JSON.parse(JSON.stringify(value)); }
@@ -787,7 +819,7 @@ function emptyItem(overrides = {}){
     received:"NO", cataloged:"NO", spine:"NO", covered:"NO", minimalCover:false,
     paidPrice:"", retailPrice:"", manualDone:false, fixDetails:"", fixDone:false,
     holdName:"", adoptedAmt:"", bookplate:"NO", donated:"", memorial:"", notes:"",
-    slipPrinted:"NO", printedAt:"", orderId:"", orderNumber:"", completionState:"In Progress",
+    slipPrinted:"NO", printedAt:"", orderId:"", orderNumber:"", vendor:"", completionState:"In Progress",
     exceptionType:"", exceptionNotes:"", assignedTo:"", currentLocation:"", handoffNotes:"",
     createdAt:stamp, receivedAt:"", catalogedAt:"", spineAt:"", coveredAt:"", bookplatePrintedAt:"", doneAt:"", lastSlipPrintedAt:"",
     statusSig:"", statusChangedAt:stamp, updatedAt:stamp, activity:[],
@@ -823,7 +855,7 @@ function migrateOrder(order){
     items: Array.isArray(order.items) ? order.items.map(item => ({
       id: item.id || uid(), title: item.title || "", author: item.author || "", barcode: item.barcode || "",
       donated: item.donated || "", memorial: item.memorial || "", notes: item.notes || "", paidPrice: item.paidPrice || "",
-      retailPrice: item.retailPrice || "", materialType: item.materialType || "Book"
+      retailPrice: item.retailPrice || "", materialType: item.materialType || "Book", orderNumber: item.orderNumber || order.orderNumber || order.title || "", vendor: item.vendor || order.vendor || ""
     })) : []
   };
 }
@@ -984,6 +1016,25 @@ function clearFilters(){
   $("filterDoneState").value = "open";
   refreshAll();
 }
+function getOrderGroups(){
+  const orders = [...data.orders].sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  return {
+    current: orders.filter(order => !orderProgress(order).isArchived),
+    archived: orders.filter(order => orderProgress(order).isArchived)
+  };
+}
+function setOrdersView(view){
+  ordersView = ORDER_VIEWS.includes(view) ? view : "current";
+  $("ordersCurrentBtn")?.classList.toggle("active", ordersView === "current");
+  $("ordersArchivedBtn")?.classList.toggle("active", ordersView === "archived");
+  const receiving = $("receivingOrderSelect");
+  if(receiving && receiving.value){
+    const selectedOrder = data.orders.find(order => order.id === receiving.value);
+    if(selectedOrder && orderProgress(selectedOrder).isArchived) receiving.value = "";
+  }
+  renderOrders();
+  renderReceivingSession();
+}
 function renderFilterOptions(){
   const setOptions = (id, options, firstLabel="All") => {
     const select = $(id); const previous = select.dataset.prev ?? select.value;
@@ -1002,7 +1053,8 @@ function renderFilterOptions(){
   $("completionState").innerHTML = COMPLETION_STATES.map(state => `<option value="${state}">${state}</option>`).join("");
   $("exceptionType").innerHTML = EXCEPTION_TYPES.map(type => `<option value="${type}">${type || "None"}</option>`).join("");
   const receiving = $("receivingOrderSelect"); const previous = receiving.value;
-  receiving.innerHTML = `<option value="">Select order</option>` + data.orders.map(order => `<option value="${order.id}">${escapeHTML(order.orderNumber || "Untitled order")}</option>`).join("");
+  const currentOrders = getOrderGroups().current;
+  receiving.innerHTML = `<option value="">Select order</option>` + currentOrders.map(order => `<option value="${order.id}">${escapeHTML(order.orderNumber || "Untitled order")}</option>`).join("");
   if([...receiving.options].some(option => option.value === previous)) receiving.value = previous;
 }
 function getCardMeta(key){
@@ -1075,11 +1127,15 @@ function renderCurrentItemCard(){
   const target = $("currentItemCard"); if(!target) return; const source = activeId ? (data.items.find(x => x.id === activeId) || getEditorItem()) : getEditorItem();
   const item = migrateItem(source || emptyItem());
   const stage = getWorkflowStage(item); const nextStep = getNextStep(item); const flags = [];
+  const specialBadges = [];
   if(hasException(item)) flags.push(`<span class="pill exception">${escapeHTML(normalizeExceptionType(item.exceptionType))}</span>`);
   if(isGeneralFix(item)) flags.push('<span class="pill warn">Repair flow</span>');
-  if(hasHold(item)) flags.push('<span class="pill special">Hold</span>');
+  if(hasHold(item)){ flags.push('<span class="pill special">Hold</span>'); specialBadges.push('<span class="pill special">Hold</span>'); }
+  if(hasDonation(item)){ flags.push('<span class="pill special">Donor</span>'); specialBadges.push('<span class="pill special">Donor</span>'); }
+  if(hasMemorial(item)){ flags.push('<span class="pill special">Memorial</span>'); specialBadges.push('<span class="pill special">Memorial</span>'); }
+  if(hasAdopted(item)){ flags.push('<span class="pill special">Adopted</span>'); specialBadges.push('<span class="pill special">Adopted</span>'); }
   if(hasBookplateNeed(item)) flags.push('<span class="pill warn">Slip needed</span>');
-  if(isSpecial(item) && !hasBookplateNeed(item)) flags.push('<span class="pill">Special handling</span>');
+  if(isSpecial(item) && !hasBookplateNeed(item) && !specialBadges.length) flags.push('<span class="pill">Special handling</span>');
   if(item.slipPrinted !== 'YES') flags.push('<span class="pill info">Slip not printed</span>');
   target.innerHTML = `
     <div class="currentItemHeader">
@@ -1090,6 +1146,7 @@ function renderCurrentItemCard(){
       </div>
       <div class="badgeRow">${flags.length ? flags.join('') : '<span class="pill done">Normal item</span>'}</div>
     </div>
+    ${specialBadges.length ? `<div class="badgeRow">${specialBadges.join('')}</div>` : ''}
     <div class="currentItemMeta">
       <div class="metaBlock"><span class="label">Barcode</span><span class="value mono">${escapeHTML(item.barcode || 'Waiting for scan')}</span></div>
       <div class="metaBlock"><span class="label">Material type</span><span class="value">${escapeHTML(item.materialType || 'Book')}</span></div>
@@ -1120,8 +1177,8 @@ function handleEditorAction(action){
 }
 function updateEditorPanels(){
   const draft = getEditorItem();
-  const specialOpen = isSpecial(draft) || hasBookplateNeed(draft);
-  const exceptionOpen = hasException(draft) || !!draft.exceptionNotes || !!draft.handoffNotes;
+  const specialOpen = hasHold(draft) || hasAdopted(draft) || hasDonation(draft) || hasMemorial(draft);
+  const exceptionOpen = hasException(draft) || !!draft.exceptionNotes || !!draft.handoffNotes || !!draft.notes;
   $("specialHandlingSection").open = specialOpen;
   $("exceptionsSection").open = exceptionOpen;
   const exceptionEl = $("exceptionVisibility");
@@ -1147,7 +1204,7 @@ function renderTable(){
     if(hasException(it)) flags.push(`<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>`);
     if(isGeneralFix(it)) flags.push(`<span class="pill warn">Repair</span>`);
     if(hasHold(it)) flags.push(`<span class="pill special">Hold</span>`);
-    if(hasDonation(it)) flags.push(`<span class="pill">Donation</span>`);
+    if(hasDonation(it)) flags.push(`<span class="pill special">Donor</span>`);
     if(hasMemorial(it)) flags.push(`<span class="pill">Memorial</span>`);
     if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
     if(hasBookplateNeed(it)) flags.push(`<span class="pill warn">Bookplate</span>`);
@@ -1262,7 +1319,7 @@ function loadIntoEditor(it){
   $("fixDetails").value = it.fixDetails || ""; $("fixDone").checked = it.fixDone === true; $("holdName").value = it.holdName || ""; $("adoptedAmt").value = it.adoptedAmt ?? ""; $("bookplate").value = it.bookplate || "NO";
   $("donated").value = it.donated || ""; $("memorial").value = it.memorial || ""; $("itemNotes").value = it.notes || ""; $("slipPrinted").value = it.slipPrinted || "NO"; $("printedAt").value = it.printedAt || "";
   $("completionState").value = it.completionState || "In Progress"; $("exceptionType").value = normalizeExceptionType(it.exceptionType || ""); $("exceptionNotes").value = it.exceptionNotes || ""; $("assignedTo").value = it.assignedTo || "";
-  $("currentLocation").value = it.currentLocation || ""; $("handoffNotes").value = it.handoffNotes || ""; toggleWorkTypeFields(); syncReceipt(); renderActivityTimeline(it); syncDuplicateWarnings(); updateEditorPanels(); }
+  $("currentLocation").value = it.currentLocation || ""; $("handoffNotes").value = it.handoffNotes || ""; toggleWorkTypeFields(); syncReceipt(); renderActivityTimeline(it); syncDuplicateWarnings(); updateEditorPanels(); $("historySection").open = false; }
 function clearEditor(){ activeId = null; loadIntoEditor(emptyItem()); activeId = null; setScanStatus("Ready for next barcode."); focusScanInput(); }
 function toggleWorkTypeFields(){ const isFix = $("workType").value === "FIX"; document.querySelectorAll(".generalFixHide").forEach(el => el.classList.toggle("hidden", isFix)); document.querySelectorAll(".generalFixOnly").forEach(el => el.classList.toggle("hidden", !isFix)); const helper = $("workTypeHelper"); if(helper) helper.textContent = isFix ? "General fix mode is active. Repair-specific fields are shown and normal processing steps are minimized." : "Standard new-book flow is active. Use quick actions for the common path."; }
 function saveItem(){
@@ -1271,7 +1328,7 @@ function saveItem(){
   if(!prev){ const dupeBarcode = data.items.find(x => (x.barcode || "").trim() === it.barcode && x.id !== it.id); if(dupeBarcode){ prev = dupeBarcode; it.id = dupeBarcode.id; activeId = dupeBarcode.id; } }
   if(prev){
     it.createdAt = prev.createdAt || it.createdAt; it.activity = Array.isArray(prev.activity) ? [...prev.activity] : [];
-    ["receivedAt","catalogedAt","spineAt","coveredAt","bookplatePrintedAt","doneAt","lastSlipPrintedAt","orderId","orderNumber","statusChangedAt"].forEach(field => { if(prev[field] && !it[field]) it[field] = prev[field]; });
+    ["receivedAt","catalogedAt","spineAt","coveredAt","bookplatePrintedAt","doneAt","lastSlipPrintedAt","orderId","orderNumber","vendor","statusChangedAt"].forEach(field => { if(prev[field] && !it[field]) it[field] = prev[field]; });
   }else logActivity(it, "Created");
   if(it.assignedTo && (!prev || it.assignedTo !== prev.assignedTo)) logActivity(it, "Assigned", it.assignedTo);
   if(normalizeExceptionType(it.exceptionType) && (!prev || normalizeExceptionType(it.exceptionType) !== normalizeExceptionType(prev.exceptionType))) logActivity(it, "Exception added", normalizeExceptionType(it.exceptionType));
@@ -1306,6 +1363,11 @@ function populateReceipt(it){
   const adopted = formatMoney(item.adoptedAmt); $("rAdoptedAmt").textContent = adopted; $("rAdoptedRow").classList.toggle("hidden", !adopted); $("rBookplate").textContent = item.bookplate || "NO"; $("rBookplateRow").classList.toggle("hidden", !adopted);
   const donation = (item.donated || "").trim(); $("rDonatedName").textContent = donation; $("rDonatedRow").classList.toggle("hidden", !donation);
   const memorial = (item.memorial || "").trim(); $("rMemorial").textContent = memorial; $("rMemorialRow").classList.toggle("hidden", !memorial);
+  const linkedOrder = data.orders.find(order => order.id === item.orderId) || null;
+  const orderNumber = (item.orderNumber || linkedOrder?.orderNumber || "").trim();
+  const vendor = (item.vendor || linkedOrder?.vendor || "").trim();
+  $("rOrderNumber").textContent = orderNumber; $("rOrderNumberRow").classList.toggle("hidden", !orderNumber);
+  $("rVendor").textContent = vendor; $("rVendorRow").classList.toggle("hidden", !vendor);
   const notes = (item.notes || "").trim(); $("rNotes").textContent = notes; $("rNotesRow").classList.toggle("hidden", !notes);
   $("rBarcodeText").textContent = item.barcode || "";
   if(item.barcode){ try{ JsBarcode("#barcodeSvg", item.barcode, { format:"CODE128", width:2, height:56, displayValue:false, margin:0, lineColor:"#000" }); }catch{} }
@@ -1327,14 +1389,14 @@ function printSlip(){
   const saved = data.items.find(x => x.id === (activeId || currentId) || x.barcode === draft.barcode);
   if(saved){ saved.slipPrinted = "YES"; saved.printedAt = $("printedAt").value; saved.lastSlipPrintedAt = nowISO(); logActivity(saved, "Slip printed"); saved.updatedAt = nowISO(); rememberRecentScan(saved.id); }
   persist();
-  if(saved){ runPrintMode('print-slip', () => populateReceipt(saved), () => { syncReceipt(); if($("sessionModeEnabled").value === "1") loadNextActiveItem(saved.id); else focusScanInput(); }); }
+  if(saved){ updateSlipPreviewVisibility(); runPrintMode('print-slip', () => populateReceipt(saved), () => { syncReceipt(); updateSlipPreviewVisibility(); if($("sessionModeEnabled").value === "1") loadNextActiveItem(saved.id); else focusScanInput(); }); }
 }
-function printAdHocSlip(it){ const previous = getEditorItem(); runPrintMode('print-slip', () => populateReceipt(it), () => { populateReceipt(previous); focusScanInput(); }); }
+function printAdHocSlip(it){ const previous = getEditorItem(); updateSlipPreviewVisibility(); runPrintMode('print-slip', () => populateReceipt(it), () => { populateReceipt(previous); updateSlipPreviewVisibility(); focusScanInput(); }); }
 function loadNextActiveItem(currentId){ const next = getVisibleItems().find(row => row.it.id !== currentId && !isDone(row.it)); if(next) loadIntoEditor(next.it); else clearEditor(); }
 function getEditorOrder(){ return { id: activeOrderId || orderUid(), orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim(), orderedOn: $("orderPlaced").value, notes: $("orderNotes").value.trim(), items:[...orderItems], updatedAt:nowISO() }; }
 function loadIntoOrderEditor(order){ activeOrderId = order.id; $("orderNumber").value = order.orderNumber || ""; $("orderVendor").value = order.vendor || ""; $("orderPlaced").value = order.orderedOn || ""; $("orderNotes").value = order.notes || ""; orderItems = Array.isArray(order.items) ? structuredCloneSafe(order.items) : []; renderOrderItems(); }
 function clearOrder(){ activeOrderId = null; ["orderNumber","orderVendor","orderPlaced","orderNotes","orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; orderItems = []; renderOrderItems(); }
-function addOrderItem(){ const title = $("orderItemTitle").value.trim(); const barcode = $("orderItemBarcode").value.trim(); if(!title && !barcode){ alert("Enter an item title or barcode."); return; } orderItems.push({ id:uid(), title, author:$("orderItemAuthor").value.trim(), barcode, donated:$("orderItemDonation").value.trim(), memorial:$("orderItemMemorial").value.trim(), notes:$("orderItemNotes").value.trim(), paidPrice:$("orderItemPaidPrice").value, retailPrice:$("orderItemRetailPrice").value, materialType:$("orderItemMaterialType").value }); clearOrderItemFields(); renderOrderItems(); }
+function addOrderItem(){ const title = $("orderItemTitle").value.trim(); const barcode = $("orderItemBarcode").value.trim(); if(!title && !barcode){ alert("Enter an item title or barcode."); return; } orderItems.push({ id:uid(), title, author:$("orderItemAuthor").value.trim(), barcode, donated:$("orderItemDonation").value.trim(), memorial:$("orderItemMemorial").value.trim(), notes:$("orderItemNotes").value.trim(), paidPrice:$("orderItemPaidPrice").value, retailPrice:$("orderItemRetailPrice").value, materialType:$("orderItemMaterialType").value, orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim() }); clearOrderItemFields(); renderOrderItems(); }
 function clearOrderItemFields(){ ["orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; }
 function removeOrderItem(id){ orderItems = orderItems.filter(item => item.id !== id); renderOrderItems(); }
 function saveOrder(){ const order = getEditorOrder(); if(!order.orderNumber){ alert("Order # is required."); return; } const index = data.orders.findIndex(x => x.id === order.id); if(index >= 0) data.orders[index] = migrateOrder(order); else data.orders.push(migrateOrder(order)); syncProcessingItemsFromOrder(order); persist(); }
@@ -1345,19 +1407,20 @@ function syncProcessingItemsFromOrder(order){
   ord.items.forEach((orderItem,index) => {
     const generatedBarcode = (!orderItem.barcode && ord.orderNumber) ? `ORDER-${ord.orderNumber}-${index + 1}` : ""; if(generatedBarcode) orderItem.barcode = generatedBarcode;
     const existing = data.items.find(item => item.id === orderItem.id); const item = migrateItem(existing || emptyItem({ id: orderItem.id }));
-    item.barcode = orderItem.barcode || item.barcode || generatedBarcode; item.title = orderItem.title || item.title; item.author = orderItem.author || item.author; item.donated = orderItem.donated || item.donated; item.memorial = orderItem.memorial || item.memorial; item.notes = orderItem.notes || item.notes; item.paidPrice = orderItem.paidPrice || item.paidPrice; item.retailPrice = orderItem.retailPrice || item.retailPrice; item.materialType = orderItem.materialType || item.materialType || "Book"; item.orderId = ord.id; item.orderNumber = ord.orderNumber; item.updatedAt = nowISO(); if(!existing) logActivity(item, "Created", `Imported from order ${ord.orderNumber}`);
+    item.barcode = orderItem.barcode || item.barcode || generatedBarcode; item.title = orderItem.title || item.title; item.author = orderItem.author || item.author; item.donated = orderItem.donated || item.donated; item.memorial = orderItem.memorial || item.memorial; item.notes = orderItem.notes || item.notes; item.paidPrice = orderItem.paidPrice || item.paidPrice; item.retailPrice = orderItem.retailPrice || item.retailPrice; item.materialType = orderItem.materialType || item.materialType || "Book"; item.orderId = ord.id; item.orderNumber = orderItem.orderNumber || ord.orderNumber; item.vendor = orderItem.vendor || ord.vendor || item.vendor || ""; item.updatedAt = nowISO(); if(!existing) logActivity(item, "Created", `Imported from order ${ord.orderNumber}`);
     const idx = data.items.findIndex(x => x.id === item.id); if(idx >= 0) data.items[idx] = item; else data.items.push(item);
   });
 }
 function orderProgress(order){ const linked = data.items.filter(item => item.orderId === order.id); const total = order.items?.length || 0; const activeLinked = linked.filter(item => !isArchivedItem(item)); const received = activeLinked.filter(item => item.received === "YES").length; const completed = activeLinked.filter(item => isDone(item)).length; const archived = linked.filter(item => isArchivedItem(item)).length; const allReceived = total > 0 && activeLinked.length > 0 && activeLinked.every(item => item.received === "YES"); const allCompleted = total > 0 && activeLinked.length > 0 && activeLinked.every(item => isDone(item)); const canArchive = total > 0 && activeLinked.length > 0 && allReceived && allCompleted; return { total, received, completed, archived, activeCount: activeLinked.length, canArchive, isArchived: total > 0 && linked.length > 0 && linked.every(item => isArchivedItem(item)) }; }
 function archiveOrder(orderId){ const order = data.orders.find(x => x.id === orderId); if(!order) return; syncProcessingItemsFromOrder(order); const linked = data.items.filter(item => item.orderId === order.id && !isArchivedItem(item)); if(!linked.length){ alert('This order is already archived or has no active items.'); return; } if(linked.some(item => item.received !== 'YES' || !isDone(item))){ alert('Archive is only available after every active order item is received and completed.'); return; } linked.forEach(item => { item.completionState = 'Archived'; ensureTimestamp(item, 'doneAt'); item.updatedAt = nowISO(); logActivity(item, 'Archived', `Archived with order ${order.orderNumber || ''}`.trim()); }); order.updatedAt = nowISO(); persist(); }
-function renderOrders(){ const tbody = $("ordersTable"); tbody.innerHTML = ""; const orders = [...data.orders].sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0); $("ordersSummary").textContent = `Total orders: ${orders.length} • Items: ${itemCount}`; if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="7"><div class="emptyState">No orders saved yet.</div></td></tr>`; return; } orders.forEach(order => { const progress = orderProgress(order); const status = progress.isArchived ? 'Archived' : progress.canArchive ? 'Ready to archive' : 'Active'; tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}</td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td><div class="badgeRow"><span class="pill ${progress.isArchived ? 'done' : progress.canArchive ? 'warn' : 'info'}">${escapeHTML(status)}</span>${progress.archived ? `<span class="pill soft">${progress.archived} archived</span>` : ''}</div></td><td class="mono">${progress.received}/${progress.activeCount || progress.total} received • ${progress.completed}/${progress.activeCount || progress.total} complete</td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary" onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button><button class="smallBtn ${progress.canArchive ? '' : 'ghost'}" ${progress.canArchive ? '' : 'disabled'} onclick="archiveOrder('${order.id}')">Archive order</button></div></td></tr>`; }); }
-function loadOrder(id){ const order = data.orders.find(x => x.id === id); if(order) loadIntoOrderEditor(order); $("receivingOrderSelect").value = id; renderReceivingSession(); }
+function renderOrders(){ const tbody = $("ordersTable"); tbody.innerHTML = ""; const groups = getOrderGroups(); const orders = groups[ordersView] || groups.current; const currentCount = groups.current.length; const archivedCount = groups.archived.length; const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0); $("ordersSummary").textContent = `Current orders: ${currentCount} • Archived orders: ${archivedCount} • Showing ${ordersView === 'archived' ? 'archived' : 'current'} items: ${itemCount}`; $("ordersCurrentBtn")?.classList.toggle("active", ordersView === "current"); $("ordersArchivedBtn")?.classList.toggle("active", ordersView === "archived"); if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="7"><div class="emptyState">No ${ordersView} orders saved yet.</div></td></tr>`; return; } orders.forEach(order => { const progress = orderProgress(order); const status = progress.isArchived ? 'Archived' : progress.canArchive ? 'Ready to archive' : 'Active'; const canReceive = !progress.isArchived; tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}</td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td><div class="badgeRow"><span class="pill ${progress.isArchived ? 'done' : progress.canArchive ? 'warn' : 'info'}">${escapeHTML(status)}</span>${progress.archived ? `<span class="pill soft">${progress.archived} archived</span>` : ''}</div></td><td class="mono">${progress.received}/${progress.activeCount || progress.total} received • ${progress.completed}/${progress.activeCount || progress.total} complete</td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary ${canReceive ? '' : 'ghost'}" ${canReceive ? '' : 'disabled'} onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button><button class="smallBtn ${progress.canArchive ? '' : 'ghost'}" ${progress.canArchive ? '' : 'disabled'} onclick="archiveOrder('${order.id}')">Archive order</button></div></td></tr>`; }); }
+function loadOrder(id){ const order = data.orders.find(x => x.id === id); if(order){ loadIntoOrderEditor(order); setOrdersView(orderProgress(order).isArchived ? 'archived' : 'current'); } const receiving = $("receivingOrderSelect"); if(receiving && [...receiving.options].some(option => option.value === id)) receiving.value = id; renderReceivingSession(); }
 function renderReceivingSession(){
   const orderId = $("receivingOrderSelect").value; const list = $("receivingList");
   if(!orderId){ $("receivingProgress").textContent = "No order selected."; list.innerHTML = `<div class="emptyState">Choose an order to start receiving.</div>`; return; }
   const order = data.orders.find(x => x.id === orderId); if(!order){ list.innerHTML = `<div class="emptyState">Order not found.</div>`; return; }
-  syncProcessingItemsFromOrder(order); const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean); const received = linked.filter(it => it.received === "YES").length; $("receivingProgress").textContent = `${received}/${linked.length} received • ${linked.filter(it => isDone(it)).length} complete`; list.innerHTML = "";
+  if(orderProgress(order).isArchived){ $("receivingProgress").textContent = "Archived orders are hidden from receiving."; list.innerHTML = `<div class="emptyState">Receiving session only shows current, non-archived orders.</div>`; return; }
+  syncProcessingItemsFromOrder(order); const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean).filter(it => !isArchivedItem(it)); const received = linked.filter(it => it.received === "YES").length; $("receivingProgress").textContent = `${received}/${linked.length} received • ${linked.filter(it => isDone(it)).length} complete`; list.innerHTML = "";
   linked.forEach(it => { list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagDamaged('${it.id}')">Damaged</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button></div></div>`; });
   if(linked.length === 0) list.innerHTML = `<div class="emptyState">This order has no items.</div>`;
 }
@@ -1366,7 +1429,7 @@ function flagDamaged(id){ const item = data.items.find(x => x.id === id); if(!it
 function flagExtra(orderId){ const barcode = prompt("Enter barcode for extra item:"); if(!barcode) return; const order = data.orders.find(x => x.id === orderId); if(!order) return; const item = emptyItem({ barcode, title:"Extra received item", orderId, orderNumber:order.orderNumber, received:"YES", receivedAt:nowISO(), exceptionType:normalizeExceptionType("Wrong edition"), exceptionNotes:"Flagged as extra during receiving session." }); logActivity(item, "Created", "Extra item added during receiving"); data.items.push(item); persist(); }
 function receiveAllItemsForOrder(orderId){ const order = data.orders.find(x => x.id === orderId); if(!order) return; syncProcessingItemsFromOrder(order); order.items.forEach(item => { const linked = data.items.find(it => it.id === item.id); if(linked) applyQuickActionToItem(linked, "received"); }); persist(); }
 function receiveAllItemsForSelectedOrder(){ const id = $("receivingOrderSelect").value; if(id) receiveAllItemsForOrder(id); }
-function printOrderItemSlip(orderItemId, fallbackIndex = 0){ const orderItem = orderItems.find(item => item.id === orderItemId); if(!orderItem) return; const orderNumber = $("orderNumber").value.trim(); const barcode = orderItem.barcode || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : ""); const temp = migrateItem({ ...emptyItem({ id:orderItem.id }), ...orderItem, barcode, workType:"NEW", slipPrinted:"YES", printedAt:nowStamp(), lastSlipPrintedAt:nowISO() }); printAdHocSlip(temp); }
+function printOrderItemSlip(orderItemId, fallbackIndex = 0){ const orderItem = orderItems.find(item => item.id === orderItemId); if(!orderItem) return; const orderNumber = $("orderNumber").value.trim(); const vendor = $("orderVendor").value.trim(); const barcode = orderItem.barcode || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : ""); const temp = migrateItem({ ...emptyItem({ id:orderItem.id }), ...orderItem, barcode, orderNumber: orderItem.orderNumber || orderNumber, vendor: orderItem.vendor || vendor, workType:"NEW", slipPrinted:"YES", printedAt:nowStamp(), lastSlipPrintedAt:nowISO() }); printAdHocSlip(temp); }
 
 function loadById(id){ const it = data.items.find(x => x.id === id); if(!it) return; loadIntoEditor(it); setActiveTab("processing"); $("title").focus(); }
 function loadAndPrint(id){ loadById(id); printSlip(); }
