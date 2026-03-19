@@ -50,7 +50,8 @@ Changelog - Book Processing Dashboard v2.3
   .mono{ font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
   .hidden{ display:none !important; }
 
-  .app{ display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:18px; max-width:1600px; margin:0 auto; padding:20px; align-items:start; }
+  .app{ display:grid; grid-template-columns:minmax(0,1fr) 352px; gap:18px; max-width:1900px; margin:0 auto; padding:20px; align-items:start; }
+  .app.previewCollapsed{ grid-template-columns:minmax(0,1fr); }
   .panel{ background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:18px; box-shadow:var(--shadow); }
   .section{ border:1px solid var(--border); border-radius:18px; padding:16px; background:var(--panel-strong); box-shadow:var(--shadow-soft); margin-bottom:14px; }
   .section.tight{ padding:14px; }
@@ -79,7 +80,7 @@ Changelog - Book Processing Dashboard v2.3
   .queueBoard{ grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
   .dashboardGrid{ grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
   .overviewGrid{ grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr); }
-  .processingWorkbench{ grid-template-columns:minmax(0,1.3fr) minmax(340px,.9fr); align-items:start; }
+  .processingWorkbench{ grid-template-columns:minmax(0,1.65fr) minmax(320px,1fr); align-items:start; }
 
   input[type="text"], input[type="number"], input[type="date"], textarea, select{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px; font-size:.92rem; color:var(--ink); background:#fff; }
   textarea{ min-height:82px; resize:vertical; }
@@ -99,7 +100,7 @@ Changelog - Book Processing Dashboard v2.3
   .processingWorkbench{ gap:16px; }
   .processingMain{ display:grid; gap:14px; }
   .scanFocusPanel{ display:grid; gap:14px; }
-  .scanHero{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr); gap:14px; align-items:start; }
+  .scanHero{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr); gap:14px; align-items:start; }
   .scanField input{ font-size:1.1rem; font-weight:800; padding:16px; }
   .scanMeta{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .focusHint{ display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:.74rem; font-weight:800; }
@@ -130,14 +131,20 @@ Changelog - Book Processing Dashboard v2.3
   .subtleCard{ border:1px solid var(--border); border-radius:14px; padding:12px; background:var(--panel-soft); }
   .duplicateAlert{ display:grid; gap:8px; }
   .duplicateAlert .pill{ width:max-content; }
-  .queueTable th:nth-child(2), .queueTable td:nth-child(2){ width:120px; }
-  .queueTable th:nth-child(3), .queueTable td:nth-child(3){ width:220px; }
-  .queueTable th:nth-child(5), .queueTable td:nth-child(5){ width:260px; }
+  .queueTable th:nth-child(2), .queueTable td:nth-child(2){ width:108px; }
+  .queueTable th:nth-child(3), .queueTable td:nth-child(3){ width:180px; }
+  .queueTable th:nth-child(5), .queueTable td:nth-child(5){ width:170px; }
   .queueActionStack{ display:grid; gap:6px; }
   .queuePrimaryAction{ display:flex; gap:6px; flex-wrap:wrap; }
   .filterActions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .filterStatusBar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); margin-bottom:12px; }
   .filterStatusTitle{ font-weight:800; }
+
+  .previewPanelHeader{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+  .previewPanelHeader h2{ flex:1 1 auto; }
+  #slipPreviewPanel{ min-width:0; }
+  #slipPreviewPanel .receipt{ width:min(100%, var(--paper)); margin:0 auto; }
+
 
   .summaryCard{ display:grid; gap:8px; min-height:142px; text-align:left; padding:14px; border:1px solid var(--border); border-radius:16px; background:#fff; color:var(--ink); cursor:pointer; }
   .summaryCard:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-strong); }
@@ -185,7 +192,7 @@ Changelog - Book Processing Dashboard v2.3
   tr.rowSpecial td{ box-shadow:inset 4px 0 0 var(--danger); }
   tr.rowOverdue td{ box-shadow:inset 4px 0 0 var(--warn); }
   tr.rowDone td{ color:#5e5a54; }
-  .tableItemCell{ display:grid; gap:6px; min-width:220px; }
+  .tableItemCell{ display:grid; gap:6px; min-width:0; }
   .tableItemMeta{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .priorityScore{ font-size:1.3rem; font-weight:900; }
   .actions{ display:flex; gap:6px; flex-wrap:wrap; }
@@ -241,13 +248,15 @@ Changelog - Book Processing Dashboard v2.3
     body.print-bookplates .bookplateSheet{ border:none; border-radius:0; padding:0.25in 0.35in; }
   }
   @page bookplates{ size:letter; margin:0; }
+  @media (max-width:1400px){ .processingWorkbench{ grid-template-columns:1fr; } }
   @media (max-width:1280px){ .app{ grid-template-columns:1fr; } }
+  @media (max-width:1200px){ .scanHero,.inlineGrid4,.inlineGrid3{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media (max-width:980px){ .overviewGrid,.processingWorkbench,.scanHero,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr; } .row{ grid-template-columns:1fr; } }
   @media (max-width:700px){ .app{ padding:12px; } .bulkToolbar .dangerGroup{ margin-left:0; } }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="appShell">
   <div class="panel">
     <div class="topHeader">
       <div class="titleBlock">
@@ -322,6 +331,7 @@ Changelog - Book Processing Dashboard v2.3
               <div class="scanMeta">
                 <span class="focusHint">⌁ Scan focus stays ready</span>
                 <div id="scanStatus" class="hint">Ready for next barcode.</div>
+                <button class="secondary smallBtn" id="toggleSlipPreviewMainBtn" type="button" onclick="toggleSlipPreview()" aria-expanded="true">Hide preview</button>
               </div>
             </div>
             <div class="scanHero">
@@ -655,7 +665,10 @@ Changelog - Book Processing Dashboard v2.3
   </div>
 
   <div class="panel printpanel hidden" id="slipPreviewPanel">
-    <h2>Slip Preview</h2>
+    <div class="previewPanelHeader">
+      <h2>Slip Preview</h2>
+      <button class="secondary smallBtn" id="toggleSlipPreviewBtn" type="button" onclick="toggleSlipPreview()" aria-expanded="true">Hide preview</button>
+    </div>
     <div class="receiptWrap">
       <div class="receipt" id="receipt">
         <div id="rSpecialTop" class="r-special hidden">⚠ SPECIAL HANDLING</div>
@@ -715,6 +728,8 @@ let activeTab = "dashboard";
 let recentScannedIds = [];
 let filtersExpanded = true;
 let pendingSlipCleanup = null;
+let slipPreviewCollapsed = false;
+
 
 function structuredCloneSafe(value){ return JSON.parse(JSON.stringify(value)); }
 function nowISO(){ return new Date().toISOString(); }
@@ -729,6 +744,23 @@ function escapeHTML(str){ return String(str ?? "").replaceAll("&","&amp;").repla
 function safeText(value, fallback=""){ return (value ?? fallback).toString(); }
 function focusScanInput(){ const el = $("scan"); if(!el) return; requestAnimationFrame(() => { el.focus(); el.select?.(); }); }
 function setScanStatus(message){ const el = $("scanStatus"); if(el) el.textContent = message; }
+function updateSlipPreviewVisibility(){
+  const app = $("appShell");
+  const panel = $("slipPreviewPanel");
+  const buttons = [$("toggleSlipPreviewBtn"), $("toggleSlipPreviewMainBtn")].filter(Boolean);
+  const processingActive = activeTab === "processing";
+  const showPanel = processingActive && !slipPreviewCollapsed;
+  app?.classList.toggle("previewCollapsed", !showPanel);
+  panel?.classList.toggle("hidden", !showPanel);
+  buttons.forEach(btn => {
+    btn.textContent = showPanel ? "Hide preview" : "Show preview";
+    btn.setAttribute("aria-expanded", String(showPanel));
+  });
+}
+function toggleSlipPreview(forceState){
+  slipPreviewCollapsed = typeof forceState === "boolean" ? forceState : !slipPreviewCollapsed;
+  updateSlipPreviewVisibility();
+}
 function rememberRecentScan(id){ if(!id) return; recentScannedIds = [id, ...recentScannedIds.filter(x => x !== id)].slice(0,8); }
 function normalizeExceptionType(value){
   const raw = safeText(value).trim();
@@ -1358,10 +1390,10 @@ function setActiveTab(tab){
   activeTab = tab;
   document.querySelectorAll(".tabButton").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tab));
   document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`));
-  $("slipPreviewPanel").classList.add("hidden");
+  updateSlipPreviewVisibility();
   $("bookplatePreviewPanel").classList.toggle("hidden", tab !== "bookplates");
 }
-function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); }
+function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); updateSlipPreviewVisibility(); }
 
 $("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); $("title").focus(); });
 ["barcode","title","author","materialType","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone","completionState","exceptionType","exceptionNotes","assignedTo","currentLocation","handoffNotes"].forEach(id => { $(id).addEventListener("input", syncReceipt); $(id).addEventListener("change", syncReceipt); });
@@ -1376,7 +1408,7 @@ $("borderUpload").addEventListener("change", (event) => { const file = event.tar
 window.addEventListener("afterprint", () => { document.body.classList.remove("print-bookplates", "print-slip"); });
 document.querySelectorAll(".tabButton").forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.tab)));
 $("importFile").addEventListener("change", async (event) => { const file = event.target.files?.[0]; if(!file) return; try{ const raw = await file.text(); const parsed = JSON.parse(raw); pendingImportData = normalizeImport(parsed); $("importPreviewSummary").textContent = `Import preview: ${pendingImportData.items.length} items, ${pendingImportData.orders.length} orders, ${pendingImportData.bookplateBorders.length} borders, schema v${SCHEMA_VERSION}.`; if(!confirm(`Preview loaded. Replace current data with ${pendingImportData.items.length} items and ${pendingImportData.orders.length} orders?`)) return; data = pendingImportData; pendingImportData = null; persist(); clearEditor(); clearOrder(); alert("Import complete."); }catch{ alert("Import failed. Please choose a valid JSON backup file."); } });
-(function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); toggleFiltersPanel(true); refreshAll(); clearBookplateForm(); setActiveTab("dashboard"); focusScanInput(); })();
+(function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); toggleFiltersPanel(true); refreshAll(); clearBookplateForm(); updateSlipPreviewVisibility(); setActiveTab("dashboard"); focusScanInput(); })();
 </script>
 </body>
 </html>
