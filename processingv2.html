@@ -189,15 +189,20 @@ Major structural notes
 
   @media print{
     body{ margin:0; background:#fff; }
+    .app{ display:block; max-width:none; margin:0; padding:0; }
+    .printpanel h2,
+    body.print-slip .panel,
     body.print-bookplates .panel{ display:none !important; }
+    body.print-slip #slipPreviewPanel,
     body.print-bookplates .bookplatePrintPanel{ display:block !important; }
-    body:not(.print-bookplates) .panel:not(.printpanel){ display:none !important; }
-    .printpanel h2{ display:none !important; }
+    body.print-slip #slipPreviewPanel,
+    body.print-bookplates .bookplatePrintPanel{ margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
+    body.print-slip .receiptWrap{ display:block; }
+    body.print-slip .receipt{ width:72mm; border:none; border-radius:0; padding:0; margin:0; page:slip; break-after:avoid-page; }
     body.print-bookplates{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .receipt{ border:none; border-radius:0; padding:0; page:slip; }
     body.print-bookplates .bookplateSheet{ border:none; border-radius:0; padding:0.25in 0.35in; page:bookplates; }
   }
-  @page slip{ size:80mm auto; margin:4mm; }
+  @page slip{ size:80mm 140mm; margin:4mm; }
   @page bookplates{ size:letter; margin:0; }
   @media (max-width:1280px){ .app{ grid-template-columns:1fr; } }
   @media (max-width:980px){ .overviewGrid,.processingWorkbench,.quickWorkGrid,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr; } .row{ grid-template-columns:1fr; } }
@@ -1119,9 +1124,9 @@ function printSlip(){
   const draft = getEditorItem(); $("slipPrinted").value = "YES"; $("printedAt").value = nowStamp(); const hadActive = !!activeId; saveItem();
   const saved = data.items.find(x => x.id === activeId || x.barcode === draft.barcode);
   if(saved){ saved.slipPrinted = "YES"; saved.printedAt = $("printedAt").value; saved.lastSlipPrintedAt = nowISO(); logActivity(saved, "Slip printed"); saved.updatedAt = nowISO(); populateReceipt(saved); }
-  persist(); window.print(); if(hadActive && $("sessionModeEnabled").value === "1") loadNextActiveItem(activeId);
+  persist(); document.body.classList.add("print-slip"); window.print(); if(hadActive && $("sessionModeEnabled").value === "1") loadNextActiveItem(activeId);
 }
-function printAdHocSlip(it){ const previous = getEditorItem(); populateReceipt(it); window.print(); populateReceipt(previous); }
+function printAdHocSlip(it){ const previous = getEditorItem(); populateReceipt(it); document.body.classList.add("print-slip"); window.print(); populateReceipt(previous); }
 function loadNextActiveItem(currentId){ const next = getVisibleItems().find(row => row.it.id !== currentId && !isDone(row.it)); if(next) loadIntoEditor(next.it); else clearEditor(); }
 
 function getEditorOrder(){ return { id: activeOrderId || orderUid(), orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim(), orderedOn: $("orderPlaced").value, notes: $("orderNotes").value.trim(), items:[...orderItems], updatedAt:nowISO() }; }
@@ -1190,7 +1195,7 @@ $("receivingOrderSelect").addEventListener("change", renderReceivingSession);
 $("bookplatePadding").addEventListener("input", () => { $("bookplatePaddingValue").textContent = $("bookplatePadding").value; renderBookplateSheet(); });
 $("bookplateBorderSelect").addEventListener("change", updateBookplateBorderPreview);
 $("borderUpload").addEventListener("change", (event) => { const file = event.target.files?.[0]; if(!file) return; const reader = new FileReader(); reader.onload = () => { data.bookplateBorders ||= []; data.bookplateBorders.push({ id:uid(), name:file.name, dataUrl:reader.result }); persist(); }; reader.readAsDataURL(file); event.target.value = ""; });
-window.addEventListener("afterprint", () => { document.body.classList.remove("print-bookplates"); });
+window.addEventListener("afterprint", () => { document.body.classList.remove("print-bookplates", "print-slip"); });
 document.querySelectorAll(".tabButton").forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.tab)));
 $("importFile").addEventListener("change", async (event) => { const file = event.target.files?.[0]; if(!file) return; try{ const raw = await file.text(); const parsed = JSON.parse(raw); pendingImportData = normalizeImport(parsed); $("importPreviewSummary").textContent = `Import preview: ${pendingImportData.items.length} items, ${pendingImportData.orders.length} orders, ${pendingImportData.bookplateBorders.length} borders, schema v${SCHEMA_VERSION}.`; if(!confirm(`Preview loaded. Replace current data with ${pendingImportData.items.length} items and ${pendingImportData.orders.length} orders?`)) return; data = pendingImportData; pendingImportData = null; persist(); clearEditor(); clearOrder(); alert("Import complete."); }catch{ alert("Import failed. Please choose a valid JSON backup file."); } });
 (function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); refreshAll(); clearBookplateForm(); setActiveTab("dashboard"); $("scan").focus(); })();
