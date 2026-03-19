@@ -139,7 +139,7 @@ Changelog - Book Processing Dashboard v2.3
   .filterStatusBar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); margin-bottom:12px; }
   .filterStatusTitle{ font-weight:800; }
 
-  .summaryCard{ display:grid; gap:8px; min-height:142px; text-align:left; padding:14px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer; }
+  .summaryCard{ display:grid; gap:8px; min-height:142px; text-align:left; padding:14px; border:1px solid var(--border); border-radius:16px; background:#fff; color:var(--ink); cursor:pointer; }
   .summaryCard:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-strong); }
   .summaryCard.active{ box-shadow:0 0 0 2px rgba(95,107,99,.18), var(--shadow); }
   .summaryCard.empty{ opacity:.75; }
@@ -181,6 +181,7 @@ Changelog - Book Processing Dashboard v2.3
   tbody tr:last-child td{ border-bottom:none; }
   tr:hover td{ background:#fcfaf6; }
   tr.rowException td{ background:#fdf6f5; }
+  tr.rowDamaged td{ background:#fdeeee; box-shadow:inset 4px 0 0 #b42318; }
   tr.rowSpecial td{ box-shadow:inset 4px 0 0 var(--danger); }
   tr.rowOverdue td{ box-shadow:inset 4px 0 0 var(--warn); }
   tr.rowDone td{ color:#5e5a54; }
@@ -222,9 +223,9 @@ Changelog - Book Processing Dashboard v2.3
     @page{ margin:0; }
     body{ margin:0; background:#fff; }
     body.print-slip *{ visibility:hidden !important; }
-    body.print-slip .printpanel,
-    body.print-slip .printpanel *{ visibility:visible !important; }
-    body.print-slip .printpanel{ display:block !important; position:absolute; left:0; top:0; width:80mm; margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
+    body.print-slip #slipPreviewPanel,
+    body.print-slip #slipPreviewPanel *{ visibility:visible !important; }
+    body.print-slip #slipPreviewPanel{ display:block !important; position:absolute; left:0; top:0; width:80mm; margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
     body.print-slip #slipPreviewPanel{ min-height:auto; }
     body.print-slip .printpanel h2{ display:none !important; }
     body.print-slip .receiptWrap{ display:block; width:80mm; margin:0; padding:0; }
@@ -603,7 +604,7 @@ Changelog - Book Processing Dashboard v2.3
         <div id="ordersSummary" class="hint"></div>
         <div class="tableWrap">
           <table>
-            <thead><tr><th>Order #</th><th>Vendor</th><th>Ordered</th><th>Progress</th><th>Notes</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Order #</th><th>Vendor</th><th>Ordered</th><th>Status</th><th>Progress</th><th>Notes</th><th>Actions</th></tr></thead>
             <tbody id="ordersTable"></tbody>
           </table>
         </div>
@@ -828,7 +829,9 @@ function hasBookplateNeed(it){ return (hasAdopted(it) || hasDonation(it) || hasM
 function hasException(it){ return !!normalizeExceptionType(it.exceptionType).trim(); }
 function isSpecial(it){ return hasHold(it) || hasAdopted(it) || hasDonation(it) || hasMemorial(it); }
 function isComplete(it){ return getWorkflowStage(it) === "Complete"; }
+function isArchivedItem(it){ return (it.completionState || "") === "Archived"; }
 function isDone(it){ return isComplete(it); }
+function isDamagedOnArrival(it){ return normalizeExceptionType(it.exceptionType) === "Damaged on arrival"; }
 function statusSignature(it){ return [it.workType, it.received, it.cataloged, it.spine, it.covered, it.bookplate, it.fixDone ? "YES" : "NO", it.completionState, it.manualDone ? "YES" : "NO", normalizeExceptionType(it.exceptionType)].join("|"); }
 function getWorkflowStage(it){
   if(isGeneralFix(it)) return it.fixDone || it.completionState !== "In Progress" ? "Complete" : "General Fix";
@@ -921,7 +924,8 @@ function itemMatchesFilters(it, filters){
   if(filters.aging === "7" && !["7+","14+"].includes(getAgingBucket(it))) return false;
   if(filters.aging === "14" && getAgingBucket(it) !== "14+") return false;
   if(filters.aging === "0-2" && getAgingBucket(it) !== "0-2") return false;
-  if(filters.doneState === "open" && isDone(it)) return false;
+  const isDoneTodayCard = filters.card === "doneToday";
+  if(filters.doneState === "open" && isDone(it) && !isDoneTodayCard) return false;
   if(filters.doneState === "done" && !isDone(it)) return false;
   if(filters.doneState === "today" && !(it.doneAt && isTodayISO(it.doneAt))) return false;
   if(!matchCardFilter(it, filters.card)) return false;
@@ -991,7 +995,7 @@ function renderSummaryCards(targetId="dashboardCards"){
     const button = document.createElement("button"); button.type = "button";
     button.className = `summaryCard ${meta.tone} ${activeCardFilter === key ? "active" : ""} ${count === 0 ? "empty" : ""}`;
     button.innerHTML = `<div class="summaryCardHeader"><span class="stateChip">${escapeHTML(meta.chip)}</span><span>${escapeHTML(meta.icon)}</span></div><span class="label">${escapeHTML(meta.title)}</span><span class="count">${count}</span><span class="sub">${escapeHTML(meta.subtitle)}</span><span class="helper">${count === 0 ? 'No items currently in this queue' : escapeHTML(meta.helper)}</span>`;
-    button.onclick = () => { activeCardFilter = activeCardFilter === key ? "" : key; if(activeTab !== "dashboard") setActiveTab("processing"); refreshAll(); };
+    button.onclick = () => { activeCardFilter = activeCardFilter === key ? "" : key; if(activeTab !== "processing") setActiveTab("processing"); refreshAll(); };
     wrap.appendChild(button);
   });
 }
@@ -1020,7 +1024,7 @@ function renderDashboardPanels(){
   const queueTarget = $("dashboardQueueSummary");
   queueTarget.innerHTML = queue.length ? queue.map(({it,score,stage,nextStep}) => `<div class="summaryListItem"><div class="top"><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><span class="pill info">P${score}</span></div><div class="badgeRow"><span class="pill soft">${escapeHTML(stage)}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ``}</div><div class="hint">${escapeHTML(nextStep)}</div></div>`).join("") : `<div class="emptyState">No open queue items match the current view.</div>`;
 }
-function rowClasses(it){ const classes = []; if(hasException(it)) classes.push("rowException"); if(isSpecial(it)) classes.push("rowSpecial"); if(["7+","14+"].includes(getAgingBucket(it)) && !isDone(it)) classes.push("rowOverdue"); if(isDone(it)) classes.push("rowDone"); return classes.join(" "); }
+function rowClasses(it){ const classes = []; if(hasException(it)) classes.push("rowException"); if(isDamagedOnArrival(it)) classes.push("rowDamaged"); if(isSpecial(it)) classes.push("rowSpecial"); if(["7+","14+"].includes(getAgingBucket(it)) && !isDone(it)) classes.push("rowOverdue"); if(isDone(it)) classes.push("rowDone"); return classes.join(" "); }
 function toggleFiltersPanel(force){ filtersExpanded = typeof force === "boolean" ? force : !filtersExpanded; $("processingFiltersPanel").classList.toggle("hidden", !filtersExpanded); $("toggleFiltersBtn").textContent = filtersExpanded ? "Hide filters" : "Show filters"; }
 function quickActionCatalog(){
   return [
@@ -1276,8 +1280,9 @@ function populateReceipt(it){
 function syncReceipt(){ populateReceipt(getEditorItem()); syncDuplicateWarnings(); renderCurrentItemCard(); renderEditorQuickActions(); updateEditorPanels(); }
 function runPrintMode(mode, populateFn, afterFn){
   if(pendingSlipCleanup){ window.removeEventListener('afterprint', pendingSlipCleanup); pendingSlipCleanup(); }
+  document.body.classList.remove('print-slip', 'print-bookplates');
   populateFn();
-  const cleanup = () => { document.body.classList.remove(mode); if(afterFn) afterFn(); window.removeEventListener('afterprint', cleanup); if(pendingSlipCleanup === cleanup) pendingSlipCleanup = null; };
+  const cleanup = () => { document.body.classList.remove('print-slip', 'print-bookplates', mode); if(afterFn) afterFn(); window.removeEventListener('afterprint', cleanup); if(pendingSlipCleanup === cleanup) pendingSlipCleanup = null; };
   pendingSlipCleanup = cleanup;
   window.addEventListener('afterprint', cleanup, { once:true });
   document.body.classList.add(mode);
@@ -1302,7 +1307,7 @@ function saveOrder(){ const order = getEditorOrder(); if(!order.orderNumber){ al
 function deleteOrder(){ if(!activeOrderId){ alert("No order loaded."); return; } if(!confirm("Delete this order?")) return; data.orders = data.orders.filter(x => x.id !== activeOrderId); data.items = data.items.filter(x => x.orderId !== activeOrderId); clearOrder(); persist(); }
 function renderOrderItems(){ const tbody = $("orderItemsTable"); tbody.innerHTML = ""; if(orderItems.length === 0){ tbody.innerHTML = `<tr><td colspan="10"><div class="emptyState">No items in this order yet.</div></td></tr>`; return; } orderItems.forEach((item,index) => { tbody.innerHTML += `<tr><td>${escapeHTML(item.title || '')}</td><td>${escapeHTML(item.author || '')}</td><td class="mono">${escapeHTML(item.barcode || '')}</td><td>${escapeHTML(item.materialType || 'Book')}</td><td>${escapeHTML(item.donated || '')}</td><td>${escapeHTML(item.memorial || '')}</td><td class="mono">${escapeHTML(formatMoney(item.paidPrice))}</td><td class="mono">${escapeHTML(formatMoney(item.retailPrice))}</td><td>${escapeHTML(item.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="printOrderItemSlip('${item.id}', ${index})">Print slip</button><button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button></div></td></tr>`; }); }
 function syncProcessingItemsFromOrder(order){
-  const ord = migrateOrder(order); const orderItemIds = new Set(ord.items.map(item => item.id)); data.items = data.items.filter(item => item.orderId !== ord.id || orderItemIds.has(item.id));
+  const ord = migrateOrder(order); const orderItemIds = new Set(ord.items.map(item => item.id)); data.items = data.items.filter(item => item.orderId !== ord.id || isArchivedItem(item) || orderItemIds.has(item.id));
   ord.items.forEach((orderItem,index) => {
     const generatedBarcode = (!orderItem.barcode && ord.orderNumber) ? `ORDER-${ord.orderNumber}-${index + 1}` : ""; if(generatedBarcode) orderItem.barcode = generatedBarcode;
     const existing = data.items.find(item => item.id === orderItem.id); const item = migrateItem(existing || emptyItem({ id: orderItem.id }));
@@ -1310,18 +1315,20 @@ function syncProcessingItemsFromOrder(order){
     const idx = data.items.findIndex(x => x.id === item.id); if(idx >= 0) data.items[idx] = item; else data.items.push(item);
   });
 }
-function orderProgress(order){ const linked = data.items.filter(item => item.orderId === order.id); const total = order.items?.length || 0; const received = linked.filter(item => item.received === "YES").length; const completed = linked.filter(item => isDone(item)).length; return { total, received, completed }; }
-function renderOrders(){ const tbody = $("ordersTable"); tbody.innerHTML = ""; const orders = [...data.orders].sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0); $("ordersSummary").textContent = `Total orders: ${orders.length} • Items: ${itemCount}`; if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="6"><div class="emptyState">No orders saved yet.</div></td></tr>`; return; } orders.forEach(order => { const progress = orderProgress(order); tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}</td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td class="mono">${progress.received}/${progress.total} received • ${progress.completed} complete</td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary" onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button></div></td></tr>`; }); }
+function orderProgress(order){ const linked = data.items.filter(item => item.orderId === order.id); const total = order.items?.length || 0; const activeLinked = linked.filter(item => !isArchivedItem(item)); const received = activeLinked.filter(item => item.received === "YES").length; const completed = activeLinked.filter(item => isDone(item)).length; const archived = linked.filter(item => isArchivedItem(item)).length; const allReceived = total > 0 && activeLinked.length > 0 && activeLinked.every(item => item.received === "YES"); const allCompleted = total > 0 && activeLinked.length > 0 && activeLinked.every(item => isDone(item)); const canArchive = total > 0 && activeLinked.length > 0 && allReceived && allCompleted; return { total, received, completed, archived, activeCount: activeLinked.length, canArchive, isArchived: total > 0 && linked.length > 0 && linked.every(item => isArchivedItem(item)) }; }
+function archiveOrder(orderId){ const order = data.orders.find(x => x.id === orderId); if(!order) return; syncProcessingItemsFromOrder(order); const linked = data.items.filter(item => item.orderId === order.id && !isArchivedItem(item)); if(!linked.length){ alert('This order is already archived or has no active items.'); return; } if(linked.some(item => item.received !== 'YES' || !isDone(item))){ alert('Archive is only available after every active order item is received and completed.'); return; } linked.forEach(item => { item.completionState = 'Archived'; ensureTimestamp(item, 'doneAt'); item.updatedAt = nowISO(); logActivity(item, 'Archived', `Archived with order ${order.orderNumber || ''}`.trim()); }); order.updatedAt = nowISO(); persist(); }
+function renderOrders(){ const tbody = $("ordersTable"); tbody.innerHTML = ""; const orders = [...data.orders].sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0); $("ordersSummary").textContent = `Total orders: ${orders.length} • Items: ${itemCount}`; if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="7"><div class="emptyState">No orders saved yet.</div></td></tr>`; return; } orders.forEach(order => { const progress = orderProgress(order); const status = progress.isArchived ? 'Archived' : progress.canArchive ? 'Ready to archive' : 'Active'; tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}</td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td><div class="badgeRow"><span class="pill ${progress.isArchived ? 'done' : progress.canArchive ? 'warn' : 'info'}">${escapeHTML(status)}</span>${progress.archived ? `<span class="pill soft">${progress.archived} archived</span>` : ''}</div></td><td class="mono">${progress.received}/${progress.activeCount || progress.total} received • ${progress.completed}/${progress.activeCount || progress.total} complete</td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary" onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button><button class="smallBtn ${progress.canArchive ? '' : 'ghost'}" ${progress.canArchive ? '' : 'disabled'} onclick="archiveOrder('${order.id}')">Archive order</button></div></td></tr>`; }); }
 function loadOrder(id){ const order = data.orders.find(x => x.id === id); if(order) loadIntoOrderEditor(order); $("receivingOrderSelect").value = id; renderReceivingSession(); }
 function renderReceivingSession(){
   const orderId = $("receivingOrderSelect").value; const list = $("receivingList");
   if(!orderId){ $("receivingProgress").textContent = "No order selected."; list.innerHTML = `<div class="emptyState">Choose an order to start receiving.</div>`; return; }
   const order = data.orders.find(x => x.id === orderId); if(!order){ list.innerHTML = `<div class="emptyState">Order not found.</div>`; return; }
   syncProcessingItemsFromOrder(order); const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean); const received = linked.filter(it => it.received === "YES").length; $("receivingProgress").textContent = `${received}/${linked.length} received • ${linked.filter(it => isDone(it)).length} complete`; list.innerHTML = "";
-  linked.forEach(it => { list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button></div></div>`; });
+  linked.forEach(it => { list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagDamaged('${it.id}')">Damaged</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button></div></div>`; });
   if(linked.length === 0) list.innerHTML = `<div class="emptyState">This order has no items.</div>`;
 }
 function flagMissing(id){ const item = data.items.find(x => x.id === id); if(!item) return; item.exceptionType = normalizeExceptionType("Missing from shipment"); item.exceptionNotes = item.exceptionNotes || "Flagged during receiving session."; logActivity(item, "Exception added", item.exceptionType); persist(); }
+function flagDamaged(id){ const item = data.items.find(x => x.id === id); if(!item) return; item.received = 'YES'; ensureTimestamp(item, 'receivedAt'); item.exceptionType = normalizeExceptionType('Damaged on arrival'); item.exceptionNotes = item.exceptionNotes || 'Flagged during receiving session.'; item.updatedAt = nowISO(); logActivity(item, 'Exception added', item.exceptionType); persist(); }
 function flagExtra(orderId){ const barcode = prompt("Enter barcode for extra item:"); if(!barcode) return; const order = data.orders.find(x => x.id === orderId); if(!order) return; const item = emptyItem({ barcode, title:"Extra received item", orderId, orderNumber:order.orderNumber, received:"YES", receivedAt:nowISO(), exceptionType:normalizeExceptionType("Wrong edition"), exceptionNotes:"Flagged as extra during receiving session." }); logActivity(item, "Created", "Extra item added during receiving"); data.items.push(item); persist(); }
 function receiveAllItemsForOrder(orderId){ const order = data.orders.find(x => x.id === orderId); if(!order) return; syncProcessingItemsFromOrder(order); order.items.forEach(item => { const linked = data.items.find(it => it.id === item.id); if(linked) applyQuickActionToItem(linked, "received"); }); persist(); }
 function receiveAllItemsForSelectedOrder(){ const id = $("receivingOrderSelect").value; if(id) receiveAllItemsForOrder(id); }
