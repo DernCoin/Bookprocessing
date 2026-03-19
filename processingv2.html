@@ -1,10 +1,14 @@
 <!doctype html>
 <!--
 Changelog - Book Processing Dashboard v2.1
-- Upgraded the Processing tab into a true operations dashboard with summary cards, advanced filters, queue view, bulk actions, session mode, reporting, saved presets, and receiving session mode.
-- Added derived workflow stages, next-step logic, completion states, timestamps, activity timeline, assignment/location handoff fields, exceptions, duplicate detection, and material types.
-- Expanded inline quick actions and bulk tools without removing the existing editor, receipt/slip printing, order syncing, bookplate printing, or localStorage import/export workflow.
-- Added safe schema migration/versioning so older data continues to load and receives new fields only when needed.
+- Redesigned the interface with a calmer paper-toned shell, stronger panel hierarchy, refined controls, and clearer section grouping.
+- Reworked Processing tab layout into dashboard, quick work, filters, bulk actions, queue/table, and reporting areas without changing app data logic.
+- Rebuilt queue cards to show queue titles, counts, subtitles, active states, and category accents instead of generic click text.
+- Improved table, toolbar, empty states, presets, and supporting panels for readability while preserving localStorage, printing, orders, and bookplates.
+
+Dashboard card notes
+- Each dashboard card uses a structured layout: title, prominent count, subtitle, and optional helper text.
+- Selected cards receive a persistent active state via border, accent ring, elevated background, and status chip styling.
 -->
 <html lang="en">
 <head>
@@ -15,285 +19,254 @@ Changelog - Book Processing Dashboard v2.1
 <style>
   :root{
     --paper: 80mm;
-    --border:#d7d7d7;
-    --bg:#f7f7f5;
-    --panel:#ffffff;
-    --muted:#666;
-    --ink:#111;
-    --soft:#f3f3f0;
-    --accent:#243447;
-    --danger:#a82020;
-    --warn:#8a6110;
-    --good:#0b6;
-    --info:#3d5a80;
+    --bg:#f4f1ea;
+    --panel:#fffdf9;
+    --panel-strong:#ffffff;
+    --panel-soft:#f8f5ef;
+    --border:#d8d2c6;
+    --border-strong:#c9c1b3;
+    --shadow:0 8px 24px rgba(68, 55, 33, .06);
+    --shadow-soft:0 2px 10px rgba(68, 55, 33, .04);
+    --ink:#2a2a28;
+    --ink-soft:#5f5a52;
+    --muted:#7a7368;
+    --accent:#5f6b63;
+    --accent-soft:#edf1ed;
+    --warn:#9f7a2f;
+    --warn-soft:#f6edd7;
+    --danger:#9a4f4c;
+    --danger-soft:#f8e7e4;
+    --good:#557a5a;
+    --good-soft:#e7f0e8;
+    --info:#63768b;
+    --info-soft:#e8eef5;
+    --radius:14px;
+    --radius-sm:10px;
   }
 
+  /* Base */
   *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
   body{
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     background:var(--bg);
-    margin:18px;
+    margin:0;
     color:var(--ink);
+    line-height:1.4;
   }
-  h1{ font-size:18px; margin:0 0 10px; }
-  h2{ font-size:14px; margin:0 0 10px; color:#222; }
-  h3{ font-size:13px; margin:12px 0 8px; color:#222; }
-  h4{ font-size:12px; margin:0 0 6px; color:#333; text-transform:uppercase; letter-spacing:.4px; }
-  label{ font-size:13px; }
+  h1,h2,h3,h4,p{ margin:0; }
+  h1{ font-size:1.5rem; letter-spacing:-.02em; }
+  h2{ font-size:1rem; font-weight:800; color:var(--ink); }
+  h3{ font-size:.85rem; font-weight:800; color:var(--ink); }
+  h4{ font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; }
+  label{ display:block; margin-bottom:6px; font-size:.82rem; font-weight:700; color:var(--ink-soft); }
+  .hint{ color:var(--muted); font-size:.78rem; line-height:1.45; }
+  .mono{ font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  .caps{ text-transform:uppercase; letter-spacing:.12em; }
+  .hidden{ display:none !important; }
 
+  /* Application shell */
   .app{
     display:grid;
-    grid-template-columns:minmax(0,1fr) 440px;
-    gap:16px;
+    grid-template-columns:minmax(0,1fr) 420px;
+    gap:18px;
     align-items:start;
+    max-width:1600px;
+    margin:0 auto;
+    padding:20px;
   }
   .panel{
     background:var(--panel);
     border:1px solid var(--border);
-    border-radius:12px;
-    padding:14px;
-    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    border-radius:20px;
+    padding:18px;
+    box-shadow:var(--shadow);
   }
   .section{
-    border:1px solid #ebebeb;
-    border-radius:12px;
-    padding:12px;
-    background:#fcfcfb;
-    margin-bottom:12px;
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:16px;
+    background:var(--panel-strong);
+    box-shadow:var(--shadow-soft);
+    margin-bottom:14px;
   }
-  .section.tight{ padding:10px; }
-  .tabs{
+  .section.tight{ padding:14px; }
+  .sectionHeader{
     display:flex;
-    gap:8px;
-    margin-bottom:12px;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .sectionIntro{ display:grid; gap:4px; }
+
+  /* Header and navigation */
+  .topHeader{
+    display:flex;
     flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:18px;
+    padding:6px 4px 18px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:16px;
+  }
+  .titleBlock{ display:grid; gap:6px; }
+  .versionTag{
+    display:inline-flex; align-items:center; gap:8px; width:max-content;
+    padding:5px 10px; border-radius:999px; border:1px solid var(--border);
+    background:var(--panel-soft); color:var(--ink-soft); font-size:.74rem; font-weight:700;
+  }
+  .tabs{
+    display:flex; flex-wrap:wrap; gap:8px;
+    background:var(--panel-soft); border:1px solid var(--border);
+    border-radius:16px; padding:6px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8);
   }
   .tabButton{
-    padding:8px 12px;
-    border-radius:999px;
-    border:1px solid var(--border);
-    background:#fff;
-    color:#222;
-    font-weight:700;
-    cursor:pointer;
+    padding:10px 14px; border-radius:12px; border:1px solid transparent; background:transparent;
+    color:var(--ink-soft); font-weight:800; cursor:pointer; transition:.18s ease;
   }
-  .tabButton.active{ background:#111; color:#fff; border-color:#111; }
+  .tabButton:hover{ background:#fff; color:var(--ink); border-color:var(--border); }
+  .tabButton.active{ background:var(--panel-strong); color:var(--ink); border-color:var(--border-strong); box-shadow:var(--shadow-soft); }
   .tabPanel{ display:none; }
   .tabPanel.active{ display:block; }
-  .row{
-    display:grid;
-    grid-template-columns:160px 1fr;
-    gap:10px;
-    margin-bottom:10px;
-    align-items:center;
-  }
+
+  /* Forms and controls */
+  .row{ display:grid; grid-template-columns:170px minmax(0,1fr); gap:12px; margin-bottom:12px; align-items:center; }
   .rowTop{ align-items:start; }
   .stack{ display:grid; gap:10px; }
-  .inlineGrid2, .inlineGrid3, .inlineGrid4{
-    display:grid;
-    gap:10px;
-  }
+  .inlineGrid2,.inlineGrid3,.inlineGrid4,.filterGrid,.metricGrid,.queueBoard,.dashboardGrid{ display:grid; gap:12px; }
   .inlineGrid2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .inlineGrid3{ grid-template-columns:repeat(3,minmax(0,1fr)); }
   .inlineGrid4{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .filterGrid{ grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  .metricGrid{ grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  .queueBoard{ grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+  .dashboardGrid{ grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
   input[type="text"], input[type="number"], input[type="date"], textarea, select{
-    width:100%;
-    padding:8px 10px;
-    border:1px solid var(--border);
-    border-radius:8px;
-    font-size:14px;
-    background:#fff;
+    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px;
+    font-size:.92rem; color:var(--ink); background:#fff;
+    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
   }
-  textarea{ min-height:68px; resize:vertical; }
-  input[type="checkbox"]{ transform:translateY(1px); }
-  .btnRow{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
+  textarea{ min-height:82px; resize:vertical; }
+  input[type="checkbox"]{ accent-color:var(--accent); transform:translateY(1px); }
+  input:focus, textarea:focus, select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(95,107,99,.14); }
+  .btnRow{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
   button{
-    padding:10px 12px;
-    border-radius:10px;
-    border:1px solid var(--border);
-    background:#111;
-    color:#fff;
-    font-weight:750;
-    cursor:pointer;
+    padding:10px 14px; border-radius:12px; border:1px solid var(--accent); background:var(--accent); color:#fff;
+    font-weight:800; cursor:pointer; transition:transform .08s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease, color .18s ease;
+    box-shadow:0 1px 0 rgba(255,255,255,.15) inset;
   }
-  button.secondary{ background:#fff; color:#111; }
-  button.ghost{ background:#f6f6f6; color:#111; }
-  button.warn{ background:#8a6110; border-color:#8a6110; }
+  button:hover{ box-shadow:var(--shadow-soft); transform:translateY(-1px); }
+  button:active{ transform:translateY(0); }
+  button:disabled{ opacity:.45; cursor:not-allowed; transform:none; box-shadow:none; }
+  button.secondary{ background:#fff; color:var(--ink); border-color:var(--border-strong); }
+  button.ghost{ background:var(--panel-soft); color:var(--ink); border-color:var(--border); }
+  button.warn{ background:var(--warn); border-color:var(--warn); }
   button.danger{ background:var(--danger); border-color:var(--danger); }
-  button:active{ transform:translateY(1px); }
-  button:disabled{ opacity:.5; cursor:not-allowed; }
-  .smallBtn{ padding:6px 9px; border-radius:8px; font-size:12px; }
-  .hint{ color:var(--muted); font-size:12px; line-height:1.4; }
-  .mono{ font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-  .hidden{ display:none !important; }
-  .caps{ text-transform:uppercase; letter-spacing:.4px; }
+  .smallBtn{ padding:7px 10px; border-radius:10px; font-size:.76rem; }
 
-  .dashboardGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-    gap:10px;
+  /* Header toolbars and status */
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .toolbar .grow{ flex:1 1 240px; }
+  .processingShell{ display:grid; gap:14px; }
+  .quickWorkGrid{ display:grid; grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr); gap:12px; }
+  .quickWorkPanel{ background:linear-gradient(180deg,#fff,#fcfaf5); }
+  .scanField input{ font-size:1.05rem; font-weight:700; padding:14px 14px; }
+  .scanSupport{ display:grid; gap:10px; align-content:start; }
+  .filterPanel{ background:linear-gradient(180deg,#fff,#fcfbf8); }
+  .filterGroups{ display:grid; gap:12px; }
+  .filterGroup{ border:1px solid var(--border); border-radius:14px; padding:12px; background:var(--panel-soft); }
+  .filterActions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:4px; }
+  .filterStatusBar{
+    display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); margin-bottom:12px;
   }
+  .filterStatusTitle{ font-weight:800; color:var(--ink); }
+
+  /* Dashboard cards */
   .summaryCard{
-    border:1px solid #e4e4e4;
-    border-radius:12px;
-    background:#fff;
-    padding:10px;
-    cursor:pointer;
-    min-height:82px;
-    display:grid;
-    align-content:start;
-    gap:4px;
+    position:relative; display:grid; gap:8px; text-align:left; min-height:148px;
+    padding:14px; border:1px solid var(--border); border-radius:16px; background:#fff; cursor:pointer;
+    transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease, opacity .16s ease;
   }
-  .summaryCard.active{ border-color:#111; box-shadow:inset 0 0 0 1px #111; }
-  .summaryCard.exception{ border-color:#efc0c0; background:#fff5f5; }
-  .summaryCard .count{ font-size:24px; font-weight:900; }
-  .summaryCard .label{ font-size:12px; font-weight:800; }
-  .summaryCard .sub{ font-size:11px; color:var(--muted); }
+  .summaryCard:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-strong); }
+  .summaryCard.active{ box-shadow:0 0 0 2px rgba(95,107,99,.18), var(--shadow); transform:translateY(-2px); }
+  .summaryCard.empty{ opacity:.75; }
+  .summaryCardHeader{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .summaryCard .label{ font-size:.92rem; font-weight:800; color:var(--ink); line-height:1.25; }
+  .summaryCard .count{ font-size:2rem; line-height:1; font-weight:900; color:var(--ink); }
+  .summaryCard .sub{ font-size:.78rem; color:var(--muted); }
+  .summaryCard .helper{ font-size:.74rem; color:var(--ink-soft); }
+  .summaryCard .icon{ font-size:1rem; opacity:.8; }
+  .summaryCard .stateChip{
+    display:inline-flex; width:max-content; padding:3px 8px; border-radius:999px; font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    border:1px solid currentColor;
+  }
+  .summaryCard.neutral{ border-top:4px solid var(--accent); }
+  .summaryCard.neutral .stateChip{ color:var(--accent); background:var(--accent-soft); }
+  .summaryCard.aging{ border-top:4px solid var(--warn); }
+  .summaryCard.aging .stateChip{ color:var(--warn); background:var(--warn-soft); }
+  .summaryCard.exception{ border-top:4px solid var(--danger); background:linear-gradient(180deg,#fff,#fdf8f7); }
+  .summaryCard.exception .stateChip{ color:var(--danger); background:var(--danger-soft); }
+  .summaryCard.done{ border-top:4px solid var(--good); background:linear-gradient(180deg,#fff,#f8fcf8); }
+  .summaryCard.done .stateChip{ color:var(--good); background:var(--good-soft); }
+  .summaryCard.active.neutral{ border-color:var(--accent); }
+  .summaryCard.active.aging{ border-color:var(--warn); }
+  .summaryCard.active.exception{ border-color:var(--danger); }
+  .summaryCard.active.done{ border-color:var(--good); }
 
-  .toolbar{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    align-items:center;
-  }
-  .toolbar .grow{ flex:1 1 220px; }
-  .filterGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-    gap:10px;
-  }
-  .bulkToolbar{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    align-items:center;
-    padding:10px;
-    border:1px solid #ececec;
-    border-radius:10px;
-    background:#fff;
-    margin-bottom:10px;
-  }
+  /* Badges and metrics */
   .badgeRow{ display:flex; gap:6px; flex-wrap:wrap; }
-  .pill{
-    display:inline-block;
-    padding:3px 8px;
-    border-radius:999px;
-    border:1px solid #ddd;
-    font-size:12px;
-    font-weight:800;
-    background:#fff;
-    white-space:nowrap;
-  }
-  .pill.done{ border-color:var(--good); color:var(--good); }
-  .pill.warn{ border-color:#c89d39; color:#7a5a00; }
-  .pill.special{ border-color:#b00020; color:#b00020; }
-  .pill.info{ border-color:#597399; color:#345; }
-  .pill.soft{ background:#f6f6f6; }
-  .pill.exception{ border-color:#c33; color:#c33; background:#fff4f4; }
+  .pill{ display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px; border:1px solid var(--border); font-size:.72rem; font-weight:800; background:#fff; white-space:nowrap; color:var(--ink-soft); }
+  .pill.done{ border-color:var(--good); color:var(--good); background:var(--good-soft); }
+  .pill.warn{ border-color:var(--warn); color:var(--warn); background:var(--warn-soft); }
+  .pill.special{ border-color:var(--danger); color:var(--danger); background:var(--danger-soft); }
+  .pill.info{ border-color:var(--info); color:var(--info); background:var(--info-soft); }
+  .pill.soft{ background:var(--panel-soft); }
+  .pill.exception{ border-color:var(--danger); color:var(--danger); background:var(--danger-soft); }
+  .metric{ border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); padding:12px; display:grid; gap:6px; }
+  .metric .value{ font-size:1.3rem; font-weight:900; color:var(--ink); word-break:break-word; }
+  .presetRail{ display:flex; gap:8px; flex-wrap:wrap; }
 
-  .tableWrap{
-    overflow:auto;
-    border:1px solid #ececec;
-    border-radius:12px;
-    background:#fff;
+  /* Bulk actions */
+  .bulkToolbar{
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft);
   }
-  table{ width:100%; border-collapse:collapse; font-size:13px; }
-  th, td{ border-bottom:1px solid #eee; padding:9px 8px; vertical-align:top; }
-  thead th{ position:sticky; top:0; background:#fafafa; z-index:1; font-size:12px; color:#333; }
-  tr:hover td{ background:#fafafa; }
-  tr.rowException td{ background:#fff7f7; }
-  tr.rowSpecial td{ box-shadow:inset 3px 0 0 #b00020; }
-  tr.rowOverdue td{ box-shadow:inset 3px 0 0 #c89d39; }
-  tr.rowDone td{ color:#4b4b4b; }
+  .bulkToolbar .selectionCount{ font-weight:900; color:var(--ink); padding-right:8px; margin-right:4px; border-right:1px solid var(--border); }
+  .bulkToolbar .dangerGroup{ margin-left:auto; display:flex; gap:8px; }
+
+  /* Table and queue */
+  .tableWrap{ overflow:auto; border:1px solid var(--border); border-radius:16px; background:#fff; }
+  table{ width:100%; border-collapse:separate; border-spacing:0; font-size:.84rem; }
+  th,td{ border-bottom:1px solid #ece7dd; padding:12px 10px; vertical-align:top; }
+  thead th{ position:sticky; top:0; background:#f8f5ef; z-index:2; font-size:.74rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.08em; text-align:left; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tr:hover td{ background:#fcfaf6; }
+  tr.rowException td{ background:#fdf6f5; }
+  tr.rowSpecial td{ box-shadow:inset 4px 0 0 var(--danger); }
+  tr.rowOverdue td{ box-shadow:inset 4px 0 0 var(--warn); }
+  tr.rowDone td{ color:#5e5a54; }
+  .tableItemCell{ display:grid; gap:6px; min-width:220px; }
+  .tableItemMeta{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .priorityScore{ font-size:1.3rem; font-weight:900; }
   .actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .queueColumn{ border:1px solid var(--border); border-radius:16px; background:#fff; padding:12px; min-height:180px; box-shadow:var(--shadow-soft); }
+  .queueCard{ border:1px solid var(--border); border-radius:12px; padding:10px; margin-bottom:8px; background:var(--panel-soft); display:grid; gap:8px; }
 
-  .queueBoard{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:10px;
-  }
-  .queueColumn{
-    border:1px solid #e9e9e9;
-    border-radius:12px;
-    background:#fff;
-    padding:10px;
-    min-height:160px;
-  }
-  .queueColumn h3{ margin-top:0; }
-  .queueCard{
-    border:1px solid #ececec;
-    border-radius:10px;
-    padding:8px;
-    margin-bottom:8px;
-    background:#fcfcfc;
-    display:grid;
-    gap:6px;
-  }
-  .metricGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-    gap:10px;
-  }
-  .metric{
-    border:1px solid #ececec;
-    border-radius:10px;
-    background:#fff;
-    padding:10px;
-  }
-  .metric .value{ font-size:20px; font-weight:900; }
-
-  .timeline{
-    display:grid;
-    gap:8px;
-    max-height:220px;
-    overflow:auto;
-    padding-right:4px;
-  }
-  .timelineItem{
-    border-left:3px solid #ccc;
-    padding-left:8px;
-  }
+  /* Secondary content */
+  .timeline{ display:grid; gap:8px; max-height:220px; overflow:auto; padding-right:4px; }
+  .timelineItem{ border-left:3px solid var(--border-strong); padding-left:10px; }
   .timelineItem strong{ display:block; }
-
-  .receivingList{
-    border:1px solid #ececec;
-    border-radius:10px;
-    max-height:340px;
-    overflow:auto;
-    background:#fff;
-  }
-  .receivingItem{
-    display:grid;
-    grid-template-columns:1fr auto;
-    gap:8px;
-    padding:10px;
-    border-bottom:1px solid #eee;
-  }
+  .receivingList{ border:1px solid var(--border); border-radius:14px; max-height:340px; overflow:auto; background:#fff; }
+  .receivingItem{ display:grid; grid-template-columns:1fr auto; gap:8px; padding:10px; border-bottom:1px solid #ece7dd; }
   .receivingItem:last-child{ border-bottom:none; }
+  .emptyState{ padding:22px; text-align:center; color:var(--muted); border:1px dashed var(--border-strong); border-radius:14px; background:var(--panel-soft); }
 
-  .emptyState{
-    padding:18px;
-    text-align:center;
-    color:var(--muted);
-    border:1px dashed #ddd;
-    border-radius:10px;
-    background:#fff;
-  }
-
+  /* Print and bookplates */
   .receiptWrap{ display:grid; justify-content:center; }
-  .receipt{
-    width:var(--paper);
-    background:#fff;
-    border:1px solid var(--border);
-    border-radius:10px;
-    padding:10px;
-    font-family:"Courier New", Courier, monospace;
-    font-size:13px;
-    font-weight:700;
-    line-height:1.25;
-    image-rendering:pixelated;
-    -webkit-font-smoothing:none;
-  }
+  .receipt{ width:var(--paper); background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px; font-family:"Courier New", Courier, monospace; font-size:13px; font-weight:700; line-height:1.25; image-rendering:pixelated; -webkit-font-smoothing:none; }
   .r-title{ text-align:center; font-size:18px; font-weight:900; margin:2px 0 6px; }
   .r-special{ text-align:center; font-size:16px; font-weight:900; margin:2px 0 6px; }
   .r-rule{ border-top:1px dashed #000; margin:6px 0; }
@@ -304,22 +277,7 @@ Changelog - Book Processing Dashboard v2.1
   .r-sub{ font-weight:700; }
   .receiptStack{ display:grid; gap:12px; justify-content:center; }
   .receiptStack .receipt + .receipt{ break-before:page; page-break-before:always; }
-
-  .bookplateSheet{
-    width:8.5in;
-    height:11in;
-    margin:0 auto;
-    display:grid;
-    grid-template-columns:repeat(2, 3in);
-    grid-template-rows:repeat(3, 3.75in);
-    justify-content:space-between;
-    align-content:space-between;
-    padding:0.25in 0.35in;
-    box-sizing:border-box;
-    background:#fff;
-    border:1px solid var(--border);
-    border-radius:12px;
-  }
+  .bookplateSheet{ width:8.5in; height:11in; margin:0 auto; display:grid; grid-template-columns:repeat(2, 3in); grid-template-rows:repeat(3, 3.75in); justify-content:space-between; align-content:space-between; padding:0.25in 0.35in; box-sizing:border-box; background:#fff; border:1px solid var(--border); border-radius:12px; }
   .bookplateLabel{ position:relative; width:3.75in; height:3in; box-sizing:border-box; display:flex; align-items:center; justify-content:center; text-align:center; font-weight:700; }
   .bookplateLabel.empty{ background:#f5f5f5; border:1px dashed #ddd; }
   .bookplateBorder{ position:absolute; inset:0; width:100%; height:100%; object-fit:fill; display:block; pointer-events:none; }
@@ -347,103 +305,194 @@ Changelog - Book Processing Dashboard v2.1
   @page slip{ size:80mm auto; margin:4mm; }
   @page bookplates{ size:letter; margin:0; }
 
-  @media (max-width: 1200px){
-    .app{ grid-template-columns:1fr; }
+  @media (max-width: 1280px){ .app{ grid-template-columns:1fr; } }
+  @media (max-width: 900px){
+    .quickWorkGrid,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr 1fr; }
+    .row{ grid-template-columns:1fr; }
+  }
+  @media (max-width: 700px){
+    .app{ padding:12px; }
+    .quickWorkGrid,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr; }
+    .topHeader{ padding-bottom:14px; }
+    .bulkToolbar .dangerGroup{ margin-left:0; }
   }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="panel">
-    <h1>Book Processing Dashboard v2.1</h1>
-    <div class="tabs" role="tablist">
-      <button class="tabButton active" type="button" data-tab="processing">Processing</button>
-      <button class="tabButton" type="button" data-tab="orders">Book Orders</button>
-      <button class="tabButton" type="button" data-tab="bookplates">Bookplates</button>
-      <button class="tabButton" type="button" data-tab="settings">Settings</button>
+    <div class="topHeader">
+      <div class="titleBlock">
+        <span class="versionTag">Library workflow tool <span>v2.1</span></span>
+        <h1>Book Processing Dashboard</h1>
+        <p class="hint">Calm, practical tracking for receiving, processing, exceptions, slips, orders, and bookplates.</p>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Dashboard sections">
+        <button class="tabButton active" type="button" data-tab="processing">Processing</button>
+        <button class="tabButton" type="button" data-tab="orders">Book Orders</button>
+        <button class="tabButton" type="button" data-tab="bookplates">Bookplates</button>
+        <button class="tabButton" type="button" data-tab="settings">Settings</button>
+      </div>
     </div>
 
     <div id="tab-processing" class="tabPanel active">
-      <div class="section">
-        <h2>Operations dashboard</h2>
-        <div id="processingCards" class="dashboardGrid"></div>
-      </div>
+      <div class="processingShell">
+        <div class="section">
+          <div class="sectionHeader">
+            <div class="sectionIntro">
+              <h2>Operations dashboard</h2>
+              <p class="hint">Queue cards summarize the current workload and apply a matching queue filter when selected.</p>
+            </div>
+          </div>
+          <div id="processingCards" class="dashboardGrid"></div>
+        </div>
 
-      <div class="section tight">
-        <div class="toolbar" style="margin-bottom:10px;">
-          <div class="grow">
-            <label for="scan">Scan / Find</label>
-            <input id="scan" class="mono" type="text" placeholder="Scan barcode here (Enter loads/creates)" />
+        <div class="quickWorkGrid">
+          <div class="section quickWorkPanel">
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Scan + quick work</h2>
+                <p class="hint">Use this as the primary daily action area for scanning, locating, and moving through active work.</p>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="scanField">
+                <label for="scan">Barcode scan / find item</label>
+                <input id="scan" class="mono" type="text" placeholder="Scan barcode here, then press Enter to load or create" />
+              </div>
+              <div class="inlineGrid2">
+                <div>
+                  <label for="search">Search the queue</label>
+                  <input id="search" type="text" placeholder="Search title, barcode, assignment, notes, or order" />
+                </div>
+                <div>
+                  <label for="processingView">Queue display</label>
+                  <select id="processingView">
+                    <option value="table">Table view</option>
+                    <option value="queue">Queue view</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="grow">
-            <label for="search">Search</label>
-            <input id="search" type="text" placeholder="Search title, barcode, assignment, notes..." />
-          </div>
-          <div>
-            <label for="processingView">View</label>
-            <select id="processingView">
-              <option value="table">Table view</option>
-              <option value="queue">Queue view</option>
-            </select>
-          </div>
-          <div>
-            <label for="sessionModeEnabled">Session mode</label>
-            <select id="sessionModeEnabled">
-              <option value="0">Off</option>
-              <option value="1">On</option>
-            </select>
+
+          <div class="section quickWorkPanel">
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Work session</h2>
+                <p class="hint">Tight controls for active-floor use, including queue mode and today’s working context.</p>
+              </div>
+            </div>
+            <div class="scanSupport">
+              <div>
+                <label for="sessionModeEnabled">Session mode</label>
+                <select id="sessionModeEnabled">
+                  <option value="0">Off</option>
+                  <option value="1">On</option>
+                </select>
+              </div>
+              <div class="hint">Session mode keeps attention on open items during scan-heavy work. Queue view helps spot bottlenecks by stage.</div>
+            </div>
           </div>
         </div>
 
-        <div class="filterGrid" style="margin-bottom:10px;">
-          <div><label for="filterStage">Stage</label><select id="filterStage"></select></div>
-          <div><label for="filterSpecialHandling">Special handling</label><select id="filterSpecialHandling"></select></div>
-          <div><label for="filterAssignment">Assigned to</label><select id="filterAssignment"></select></div>
-          <div><label for="filterLocation">Location</label><select id="filterLocation"></select></div>
-          <div><label for="filterGeneralFix">General fixes</label><select id="filterGeneralFix"></select></div>
-          <div><label for="filterExceptions">Exceptions</label><select id="filterExceptions"></select></div>
-          <div><label for="filterSlip">Slip status</label><select id="filterSlip"></select></div>
-          <div><label for="filterOrderLinked">Order linked</label><select id="filterOrderLinked"></select></div>
-          <div><label for="filterAging">Aging</label><select id="filterAging"></select></div>
-          <div><label for="filterRecentlyUpdated">Recently updated</label><select id="filterRecentlyUpdated"></select></div>
-          <div><label for="filterDoneState">Completion</label><select id="filterDoneState"></select></div>
-          <div><label for="savedPreset">Saved queue preset</label><select id="savedPreset"></select></div>
-        </div>
-
-        <div class="toolbar">
-          <button class="secondary smallBtn" type="button" onclick="clearFilters()">Clear filters</button>
-          <button class="secondary smallBtn" type="button" onclick="applyPreset($('savedPreset').value)">Apply preset</button>
-          <span class="hint">Click dashboard cards to filter, use session mode for active-only scanning, and queue view for stage bottlenecks.</span>
-        </div>
-      </div>
-
-      <div class="section tight">
-        <h2>Bulk actions</h2>
-        <div class="bulkToolbar">
-          <span class="mono" id="selectedCount">0 selected</span>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('printSlips')">Print slips</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markReceived')">Mark received</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markCataloged')">Mark cataloged</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markCovered')">Mark covered</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markDone')">Mark done</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('exportSelected')">Export selected</button>
-          <button class="danger smallBtn" type="button" onclick="bulkAction('delete')">Delete</button>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="inlineGrid2">
-          <div>
-            <h2>Reporting panel</h2>
-            <div id="reportingPanel" class="metricGrid"></div>
+        <div class="section filterPanel">
+          <div class="sectionHeader">
+            <div class="sectionIntro">
+              <h2>Filters and queue presets</h2>
+              <p class="hint">Filter the working queue by workflow, flags, assignment, time, and preset views.</p>
+            </div>
           </div>
-          <div>
-            <h2>Saved presets</h2>
-            <div id="presetBadges" class="badgeRow"></div>
-            <div class="hint" style="margin-top:8px;">Built-in views: Rush Holds, Donations Review, Spine Labels Needed, Overdue Items, General Fixes, Awaiting Bookplates, Today’s Completed.</div>
+          <div class="filterGroups">
+            <div class="filterGroup">
+              <h4>Workflow</h4>
+              <div class="filterGrid">
+                <div><label for="filterStage">Stage</label><select id="filterStage"></select></div>
+                <div><label for="filterDoneState">Completion</label><select id="filterDoneState"></select></div>
+                <div><label for="filterGeneralFix">Work type</label><select id="filterGeneralFix"></select></div>
+              </div>
+            </div>
+            <div class="filterGroup">
+              <h4>Flags</h4>
+              <div class="filterGrid">
+                <div><label for="filterSpecialHandling">Special handling</label><select id="filterSpecialHandling"></select></div>
+                <div><label for="filterExceptions">Exceptions</label><select id="filterExceptions"></select></div>
+                <div><label for="filterSlip">Slip status</label><select id="filterSlip"></select></div>
+                <div><label for="filterOrderLinked">Order linked</label><select id="filterOrderLinked"></select></div>
+              </div>
+            </div>
+            <div class="filterGroup">
+              <h4>Assignment / location</h4>
+              <div class="filterGrid">
+                <div><label for="filterAssignment">Assigned to</label><select id="filterAssignment"></select></div>
+                <div><label for="filterLocation">Location</label><select id="filterLocation"></select></div>
+              </div>
+            </div>
+            <div class="filterGroup">
+              <h4>Time</h4>
+              <div class="filterGrid">
+                <div><label for="filterAging">Aging</label><select id="filterAging"></select></div>
+                <div><label for="filterRecentlyUpdated">Recently updated</label><select id="filterRecentlyUpdated"></select></div>
+              </div>
+            </div>
+            <div class="filterGroup">
+              <h4>Presets</h4>
+              <div class="filterGrid">
+                <div><label for="savedPreset">Saved queue preset</label><select id="savedPreset"></select></div>
+              </div>
+            </div>
+          </div>
+          <div class="filterActions">
+            <button class="secondary smallBtn" type="button" onclick="clearFilters()">Clear filters</button>
+            <button class="ghost smallBtn" type="button" onclick="applyPreset($('savedPreset').value)">Apply preset</button>
+            <span class="hint">Dashboard cards also act as queue filters. Presets remain lighter-weight than the main dashboard cards.</span>
           </div>
         </div>
-      </div>
+
+        <div class="section tight">
+          <div class="sectionHeader">
+            <div class="sectionIntro">
+              <h2>Bulk actions</h2>
+              <p class="hint">Apply work updates to the selected set. Destructive actions stay visually separate.</p>
+            </div>
+          </div>
+          <div class="bulkToolbar">
+            <span class="mono selectionCount" id="selectedCount">0 selected</span>
+            <button class="secondary smallBtn" type="button" onclick="bulkAction('printSlips')">Print slips</button>
+            <button class="secondary smallBtn" type="button" onclick="bulkAction('markReceived')">Mark received</button>
+            <button class="secondary smallBtn" type="button" onclick="bulkAction('markCataloged')">Mark cataloged</button>
+            <button class="secondary smallBtn" type="button" onclick="bulkAction('markCovered')">Mark covered</button>
+            <button class="secondary smallBtn" type="button" onclick="bulkAction('markDone')">Mark done</button>
+            <button class="secondary smallBtn" type="button" onclick="bulkAction('exportSelected')">Export selected</button>
+            <div class="dangerGroup">
+              <button class="danger smallBtn" type="button" onclick="bulkAction('delete')">Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="inlineGrid2">
+            <div>
+              <div class="sectionHeader">
+                <div class="sectionIntro">
+                  <h2>Reporting panel</h2>
+                  <p class="hint">A quick snapshot of today’s throughput and current backlog.</p>
+                </div>
+              </div>
+              <div id="reportingPanel" class="metricGrid"></div>
+            </div>
+            <div>
+              <div class="sectionHeader">
+                <div class="sectionIntro">
+                  <h2>Saved presets</h2>
+                  <p class="hint">Quick-access views for common queues and daily review checks.</p>
+                </div>
+              </div>
+              <div id="presetBadges" class="presetRail"></div>
+              <div class="hint" style="margin-top:8px;">Built-in views: Rush Holds, Donations Review, Spine Labels Needed, Overdue Items, General Fixes, Awaiting Bookplates, Today’s Completed.</div>
+            </div>
+          </div>
+        </div>
 
       <div class="section">
         <h2>Item editor</h2>
@@ -520,10 +569,14 @@ Changelog - Book Processing Dashboard v2.1
       </div>
 
       <div class="section">
-        <div class="toolbar" style="justify-content:space-between; margin-bottom:10px;">
-          <h2 style="margin:0;">Processing queue</h2>
+        <div class="sectionHeader">
+          <div class="sectionIntro">
+            <h2>Processing queue</h2>
+            <p class="hint">Review next steps, exceptions, aging, assignment, and row actions in one coordinated worklist.</p>
+          </div>
           <div id="summary" class="hint"></div>
         </div>
+        <div id="filterStatusBar" class="filterStatusBar hidden"></div>
         <div id="tableViewWrap">
           <div class="tableWrap">
             <table>
@@ -548,6 +601,7 @@ Changelog - Book Processing Dashboard v2.1
           <div id="queueBoard" class="queueBoard"></div>
         </div>
       </div>
+    </div>
     </div>
 
     <div id="tab-orders" class="tabPanel">
@@ -1070,35 +1124,67 @@ function renderFilterOptions(){
   if([...receiving.options].some(option => option.value === previous)) receiving.value = previous;
 }
 
+function getCardMeta(key){
+  const meta = {
+    awaitingReceipt:{ title:"Awaiting Receipt", subtitle:"items awaiting intake", helper:"Ordered or not yet marked received", tone:"neutral", chip:"Queue", icon:"📥" },
+    receivedNotCataloged:{ title:"Needs Cataloging", subtitle:"items in queue", helper:"Received and waiting for cataloging", tone:"neutral", chip:"Workflow", icon:"📚" },
+    catalogedNeedsSpine:{ title:"Needs Spine Label", subtitle:"items in queue", helper:"Cataloged and ready for label work", tone:"neutral", chip:"Workflow", icon:"🏷" },
+    needsCovering:{ title:"Needs Covering", subtitle:"items in queue", helper:"Protective covering still needed", tone:"neutral", chip:"Workflow", icon:"🧵" },
+    needsBookplate:{ title:"Needs Bookplate", subtitle:"items in queue", helper:"Donation, memorial, or adopted items pending", tone:"neutral", chip:"Special", icon:"🪧" },
+    generalFixes:{ title:"General Fixes", subtitle:"items in queue", helper:"Repair or cleanup work still open", tone:"neutral", chip:"Repair", icon:"🛠" },
+    specialHandling:{ title:"Special Handling", subtitle:"items flagged", helper:"Hold, donation, memorial, or adopted attention", tone:"neutral", chip:"Attention", icon:"✦" },
+    exceptions:{ title:"Exceptions", subtitle:"items needing review", helper:"Problems, mismatches, or vendor issues", tone:"exception", chip:"Exception", icon:"⚠" },
+    aging7:{ title:"Aging 7+ Days", subtitle:"items aging", helper:"Open items sitting at least one week", tone:"aging", chip:"Aging", icon:"◷" },
+    aging14:{ title:"Aging 14+ Days", subtitle:"items aging", helper:"Most overdue items in the workflow", tone:"aging", chip:"Overdue", icon:"⏳" },
+    doneToday:{ title:"Done Today", subtitle:"completed today", helper:"Finished items with today’s done stamp", tone:"done", chip:"Completed", icon:"✓" }
+  };
+  return meta[key] || { title:key, subtitle:"items", helper:"", tone:"neutral", chip:"Queue", icon:"•" };
+}
+
 function renderSummaryCards(){
   const cardDefs = [
-    ["awaitingReceipt","Awaiting Receipt", it => matchCardFilter(it,"awaitingReceipt")],
-    ["receivedNotCataloged","Received / Not Cataloged", it => matchCardFilter(it,"receivedNotCataloged")],
-    ["catalogedNeedsSpine","Cataloged / Needs Spine Label", it => matchCardFilter(it,"catalogedNeedsSpine")],
-    ["needsCovering","Needs Covering", it => matchCardFilter(it,"needsCovering")],
-    ["needsBookplate","Needs Bookplate", it => matchCardFilter(it,"needsBookplate")],
-    ["generalFixes","General Fixes Open", it => matchCardFilter(it,"generalFixes")],
-    ["specialHandling","Special Handling", it => matchCardFilter(it,"specialHandling")],
-    ["doneToday","Done Today", it => matchCardFilter(it,"doneToday")],
-    ["aging7","Aging 7+ days", it => matchCardFilter(it,"aging7")],
-    ["aging14","Aging 14+ days", it => matchCardFilter(it,"aging14")],
-    ["exceptions","Exception Items", it => matchCardFilter(it,"exceptions")]
+    ["awaitingReceipt", it => matchCardFilter(it,"awaitingReceipt")],
+    ["receivedNotCataloged", it => matchCardFilter(it,"receivedNotCataloged")],
+    ["catalogedNeedsSpine", it => matchCardFilter(it,"catalogedNeedsSpine")],
+    ["needsCovering", it => matchCardFilter(it,"needsCovering")],
+    ["needsBookplate", it => matchCardFilter(it,"needsBookplate")],
+    ["generalFixes", it => matchCardFilter(it,"generalFixes")],
+    ["specialHandling", it => matchCardFilter(it,"specialHandling")],
+    ["exceptions", it => matchCardFilter(it,"exceptions")],
+    ["aging7", it => matchCardFilter(it,"aging7")],
+    ["aging14", it => matchCardFilter(it,"aging14")],
+    ["doneToday", it => matchCardFilter(it,"doneToday")]
   ];
   const wrap = $("processingCards");
   wrap.innerHTML = "";
-  cardDefs.forEach(([key, label, predicate]) => {
+  cardDefs.forEach(([key, predicate]) => {
+    const meta = getCardMeta(key);
     const count = data.items.filter(predicate).length;
-    const div = document.createElement("button");
-    div.type = "button";
-    div.className = `summaryCard ${activeCardFilter === key ? "active" : ""} ${key === "exceptions" ? "exception" : ""}`;
-    div.innerHTML = `<span class="count">${count}</span><span class="label">${escapeHTML(label)}</span><span class="sub">Click to filter queue</span>`;
-    div.onclick = () => { activeCardFilter = activeCardFilter === key ? "" : key; refreshAll(); };
-    wrap.appendChild(div);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `summaryCard ${meta.tone} ${activeCardFilter === key ? "active" : ""} ${count === 0 ? "empty" : ""}`;
+    button.setAttribute("aria-pressed", activeCardFilter === key ? "true" : "false");
+    button.title = `${meta.title} (${count})`;
+    button.innerHTML = `
+      <div class="summaryCardHeader">
+        <span class="stateChip">${escapeHTML(meta.chip)}</span>
+        <span class="icon" aria-hidden="true">${escapeHTML(meta.icon)}</span>
+      </div>
+      <span class="label">${escapeHTML(meta.title)}</span>
+      <span class="count">${count}</span>
+      <span class="sub">${escapeHTML(meta.subtitle)}</span>
+      <span class="helper">${count === 0 ? 'No items currently in this queue' : escapeHTML(meta.helper)}</span>`;
+    button.onclick = () => { activeCardFilter = activeCardFilter === key ? "" : key; refreshAll(); };
+    wrap.appendChild(button);
   });
 }
 
 function renderReporting(){
   const items = data.items;
+  if(items.length === 0){
+    $("reportingPanel").innerHTML = `<div class="emptyState" style="grid-column:1 / -1;">No reporting data yet. Scan a new item or import existing data to start seeing activity summaries.</div>`;
+    return;
+  }
   const completedToday = items.filter(it => it.doneAt && isTodayISO(it.doneAt)).length;
   const receivedToday = items.filter(it => it.receivedAt && isTodayISO(it.receivedAt)).length;
   const catalogedToday = items.filter(it => it.catalogedAt && isTodayISO(it.catalogedAt)).length;
@@ -1119,7 +1205,7 @@ function renderReporting(){
 }
 
 function renderPresetBadges(){
-  $("presetBadges").innerHTML = Object.entries(builtinPresets).map(([key, preset]) => `<button type="button" class="smallBtn secondary" onclick="applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join(" ");
+  $("presetBadges").innerHTML = Object.entries(builtinPresets).map(([key, preset]) => `<button type="button" class="smallBtn ghost" onclick="applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join(" ");
 }
 
 function rowClasses(it){
@@ -1131,6 +1217,28 @@ function rowClasses(it){
   return classes.join(" ");
 }
 
+function renderFilterStatus(rows){
+  const bar = $("filterStatusBar");
+  if(!activeCardFilter){
+    bar.classList.add("hidden");
+    bar.innerHTML = "";
+    return;
+  }
+  const meta = getCardMeta(activeCardFilter);
+  bar.classList.remove("hidden");
+  bar.innerHTML = `
+    <div>
+      <div class="filterStatusTitle">Viewing: ${escapeHTML(meta.title)} (${rows.length} item${rows.length === 1 ? '' : 's'})</div>
+      <div class="hint">Queue card filter is active. Additional filters and search still apply on top of this queue.</div>
+    </div>
+    <button class="secondary smallBtn" type="button" onclick="clearQueueCardFilter()">Clear queue filter</button>`;
+}
+
+function clearQueueCardFilter(){
+  activeCardFilter = "";
+  refreshAll();
+}
+
 function renderTable(){
   const rows = getVisibleItems();
   const tbody = $("itemsTable");
@@ -1140,9 +1248,10 @@ function renderTable(){
   const exceptions = data.items.filter(hasException).length;
   const doneToday = data.items.filter(it => it.doneAt && isTodayISO(it.doneAt)).length;
   $("summary").textContent = `Visible ${rows.length} • Total ${total} • Open ${open} • Exceptions ${exceptions} • Done today ${doneToday}`;
+  renderFilterStatus(rows);
 
   if(rows.length === 0){
-    tbody.innerHTML = `<tr><td colspan="9"><div class="emptyState">No items match the current filters.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="emptyState">No items match the current filters. Clear a filter, pick another queue card, or scan a new barcode to begin.</div></td></tr>`;
     return;
   }
 
@@ -1166,18 +1275,14 @@ function renderTable(){
     tr.className = rowClasses(it);
     tr.innerHTML = `
       <td><input type="checkbox" ${selectedIds.has(it.id) ? "checked" : ""} onchange="toggleSelect('${it.id}', this.checked)" /></td>
-      <td><div class="mono" style="font-weight:900;" title="${escapeHTML(why.join(', '))}">${score}</div><div class="hint">${escapeHTML(getAgingBucket(it))} • <span title="${escapeHTML(why.join(', '))}">Why this priority?</span></div></td>
+      <td><div class="priorityScore mono" title="${escapeHTML(why.join(', '))}">${score}</div><div class="hint">${escapeHTML(getAgingBucket(it))} aging</div></td>
       <td><span class="pill info">${escapeHTML(stage)}</span></td>
-      <td>${escapeHTML(nextStep)}</td>
-      <td><strong>${escapeHTML(title || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div></td>
-      <td>${escapeHTML(it.assignedTo || '—')}<div class="hint">${escapeHTML(it.currentLocation || '')}</div></td>
-      <td>${flags.join(' ')}</td>
-      <td>${slip}<div class="hint">${escapeHTML(it.printedAt || '')}</div></td>
-      <td>
-        <div class="actions">
-          ${quickActionButtons(it)}
-        </div>
-      </td>`;
+      <td><strong>${escapeHTML(nextStep)}</strong><div class="hint">${hasException(it) ? 'Needs review before advancing' : 'Next workflow action'}</div></td>
+      <td><div class="tableItemCell"><strong>${escapeHTML(title || '(untitled)')}</strong><div class="tableItemMeta"><span class="hint mono">${escapeHTML(it.barcode || '')}</span><span class="pill soft">${escapeHTML(it.materialType || 'Item')}</span></div></div></td>
+      <td><strong>${escapeHTML(it.assignedTo || '—')}</strong><div class="hint">${escapeHTML(it.currentLocation || 'No location set')}</div></td>
+      <td>${flags.length ? flags.join(' ') : '<span class="hint">No flags</span>'}</td>
+      <td>${slip}<div class="hint">${escapeHTML(it.printedAt || 'Not yet printed')}</div></td>
+      <td><div class="actions">${quickActionButtons(it)}</div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1220,7 +1325,7 @@ function renderQueue(){
   $("queueViewWrap").classList.toggle("hidden", !queueMode);
 }
 
-function updateSelectedCount(){ $("selectedCount").textContent = `${selectedIds.size} selected`; }
+function updateSelectedCount(){ $("selectedCount").textContent = `${selectedIds.size} selected`; $("selectedCount").title = selectedIds.size ? `${selectedIds.size} item(s) ready for bulk actions.` : "No items selected for bulk actions."; }
 function toggleSelect(id, checked){ checked ? selectedIds.add(id) : selectedIds.delete(id); updateSelectedCount(); }
 
 function getSelectedItems(){ return data.items.filter(it => selectedIds.has(it.id)); }
