@@ -1,22 +1,17 @@
 <!doctype html>
 <!--
-Changelog - Book Processing Dashboard v2.2
-- Dashboard tab added as the default homepage with operations cards, reporting summary, overdue visibility, and exception review.
-- Processing tab simplified into a focused workbench for scan/find, search, reduced filters, queue/table, quick actions, and item editing.
-- Saved presets removed from the UI and supporting JavaScript.
-- Bulk slip printing removed from processing and orders workflows; single-item slip printing remains.
-- Slip printing improved for physical readability with larger, darker, bolder receipt styling and barcode emphasis.
-- Damaged on arrival exception workflow fixed so the value saves, persists, filters, counts, badges, and row styling correctly.
-
-Major structural notes
-- Dashboard content was moved out of Processing into its own tab while preserving the existing queue-card filtering behavior.
-- Orders keeps receiving workflows together so Processing stays focused on daily item work.
+Changelog - Book Processing Dashboard v2.3
+- Processing redesigned into a scan-first workbench with a current-item summary, faster quick actions, lighter editor sections, recent scans, and cleaner queue filters.
+- Item editor reorganized into practical sections with common fields up front and special-case fields visually separated to reduce control overload.
+- Queue table simplified to emphasize item, stage, next step, flags, and clearer actions while keeping existing workflow data intact.
+- Thermal slip printing moved to body-class print modes for proper 80mm receipt behavior without page-specific slip rules.
+- Bookplate printing remains separate on letter-size output and is unaffected by slip print styling.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Book Processing Dashboard v2.2</title>
+<title>Book Processing Dashboard v2.3</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
   :root{
@@ -101,9 +96,45 @@ Major structural notes
 
   .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .toolbar .grow{ flex:1 1 240px; }
-  .quickWorkGrid{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(240px,.8fr); gap:12px; }
-  .scanField input{ font-size:1.05rem; font-weight:700; padding:14px; }
+  .processingWorkbench{ gap:16px; }
+  .processingMain{ display:grid; gap:14px; }
+  .scanFocusPanel{ display:grid; gap:14px; }
+  .scanHero{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr); gap:14px; align-items:start; }
+  .scanField input{ font-size:1.1rem; font-weight:800; padding:16px; }
+  .scanMeta{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .focusHint{ display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:.74rem; font-weight:800; }
+  .currentItemCard{ display:grid; gap:12px; padding:16px; border:1px solid var(--border-strong); border-radius:18px; background:linear-gradient(180deg,#fff,#faf7f0); box-shadow:var(--shadow-soft); }
+  .currentItemHeader{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .currentItemTitle{ display:grid; gap:5px; }
+  .currentItemTitle strong{ font-size:1.05rem; }
+  .currentItemMeta{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .metaBlock{ border:1px solid var(--border); border-radius:14px; background:#fff; padding:10px 12px; display:grid; gap:4px; }
+  .metaBlock .label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:800; }
+  .metaBlock .value{ font-weight:800; }
+  .quickActionGrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .actionBtn{ min-height:58px; text-align:left; display:grid; gap:4px; align-content:center; }
+  .actionBtn span{ display:block; font-size:.73rem; opacity:.88; font-weight:700; }
+  .fastPathCard,.recentScanCard{ border:1px solid var(--border); border-radius:16px; background:var(--panel-soft); padding:14px; display:grid; gap:12px; }
+  .recentList{ display:grid; gap:8px; max-height:290px; overflow:auto; }
+  .recentItem{ display:grid; gap:6px; padding:10px 12px; border-radius:12px; border:1px solid var(--border); background:#fff; }
+  .recentItemTop{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
   .filterGroup{ border:1px solid var(--border); border-radius:14px; padding:12px; background:var(--panel-soft); }
+  .filterToggleRow{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; }
+  .compactFilterGrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+  .editorSections{ display:grid; gap:12px; }
+  .editorSection{ border:1px solid var(--border); border-radius:16px; background:#fff; overflow:hidden; }
+  .editorSection summary{ list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 16px; font-weight:800; }
+  .editorSection summary::-webkit-details-marker{ display:none; }
+  .editorSectionBody{ padding:0 16px 16px; display:grid; gap:12px; }
+  .editorSection[open] summary{ border-bottom:1px solid var(--border); background:var(--panel-soft); }
+  .subtleCard{ border:1px solid var(--border); border-radius:14px; padding:12px; background:var(--panel-soft); }
+  .duplicateAlert{ display:grid; gap:8px; }
+  .duplicateAlert .pill{ width:max-content; }
+  .queueTable th:nth-child(2), .queueTable td:nth-child(2){ width:120px; }
+  .queueTable th:nth-child(3), .queueTable td:nth-child(3){ width:220px; }
+  .queueTable th:nth-child(5), .queueTable td:nth-child(5){ width:260px; }
+  .queueActionStack{ display:grid; gap:6px; }
+  .queuePrimaryAction{ display:flex; gap:6px; flex-wrap:wrap; }
   .filterActions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .filterStatusBar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); margin-bottom:12px; }
   .filterStatusTitle{ font-weight:800; }
@@ -168,7 +199,7 @@ Major structural notes
   .emptyState{ padding:22px; text-align:center; color:var(--muted); border:1px dashed var(--border-strong); border-radius:14px; background:var(--panel-soft); }
 
   .receiptWrap{ display:grid; justify-content:center; }
-  .receipt{ width:var(--paper); background:#fff; border:2px solid #000; border-radius:8px; padding:12px 12px 10px; font-family:"Courier New", Courier, monospace; font-size:15px; font-weight:800; line-height:1.3; color:#000; image-rendering:pixelated; -webkit-font-smoothing:none; }
+  .receipt{ width:var(--paper); background:#fff; border:2px solid #000; border-radius:8px; padding:10px 10px 8px; font-family:"Courier New", Courier, monospace; font-size:14px; font-weight:800; line-height:1.28; color:#000; image-rendering:pixelated; -webkit-font-smoothing:none; }
   .r-title{ text-align:center; font-size:22px; font-weight:900; letter-spacing:.04em; margin:0 0 8px; }
   .r-special{ text-align:center; font-size:18px; font-weight:900; margin:0 0 8px; padding:4px 6px; border:2px solid #000; background:#f1f1f1; }
   .r-rule{ border-top:2px dashed #000; margin:7px 0; }
@@ -188,24 +219,27 @@ Major structural notes
   .bookplatePreviewHint{ margin-top:10px; color:var(--muted); font-size:12px; }
 
   @media print{
+    @page{ margin:0; }
     body{ margin:0; background:#fff; }
-    .app{ display:block; max-width:none; margin:0; padding:0; }
-    .printpanel h2,
-    body.print-slip .panel,
-    body.print-bookplates .panel{ display:none !important; }
-    body.print-slip #slipPreviewPanel,
-    body.print-bookplates .bookplatePrintPanel{ display:block !important; }
-    body.print-slip #slipPreviewPanel,
-    body.print-bookplates .bookplatePrintPanel{ margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
-    body.print-slip .receiptWrap{ display:block; }
-    body.print-slip .receipt{ width:72mm; border:none; border-radius:0; padding:0; margin:0; page:slip; break-after:avoid-page; }
+    body.print-slip *{ visibility:hidden !important; }
+    body.print-slip .printpanel,
+    body.print-slip .printpanel *{ visibility:visible !important; }
+    body.print-slip .printpanel{ display:block !important; position:absolute; left:0; top:0; width:80mm; margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
+    body.print-slip #slipPreviewPanel{ min-height:auto; }
+    body.print-slip .printpanel h2{ display:none !important; }
+    body.print-slip .receiptWrap{ display:block; width:80mm; margin:0; padding:0; }
+    body.print-slip .receipt{ width:80mm; max-width:80mm; border:none; border-radius:0; padding:4mm 4mm 2mm; margin:0; min-height:0; box-shadow:none; }
+    body.print-slip svg{ max-width:72mm; height:auto; }
+    body.print-bookplates *{ visibility:hidden !important; }
+    body.print-bookplates .bookplatePrintPanel,
+    body.print-bookplates .bookplatePrintPanel *{ visibility:visible !important; }
+    body.print-bookplates .bookplatePrintPanel{ display:block !important; position:absolute; left:0; top:0; width:100%; margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:#fff; }
     body.print-bookplates{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    body.print-bookplates .bookplateSheet{ border:none; border-radius:0; padding:0.25in 0.35in; page:bookplates; }
+    body.print-bookplates .bookplateSheet{ border:none; border-radius:0; padding:0.25in 0.35in; }
   }
-  @page slip{ size:80mm 140mm; margin:4mm; }
   @page bookplates{ size:letter; margin:0; }
   @media (max-width:1280px){ .app{ grid-template-columns:1fr; } }
-  @media (max-width:980px){ .overviewGrid,.processingWorkbench,.quickWorkGrid,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr; } .row{ grid-template-columns:1fr; } }
+  @media (max-width:980px){ .overviewGrid,.processingWorkbench,.scanHero,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr; } .row{ grid-template-columns:1fr; } }
   @media (max-width:700px){ .app{ padding:12px; } .bulkToolbar .dangerGroup{ margin-left:0; } }
 </style>
 </head>
@@ -214,7 +248,7 @@ Major structural notes
   <div class="panel">
     <div class="topHeader">
       <div class="titleBlock">
-        <span class="versionTag">Library workflow tool <span>v2.2</span></span>
+        <span class="versionTag">Library workflow tool <span>v2.3</span></span>
         <h1>Book Processing Dashboard</h1>
         <p class="hint">Calm, practical tracking for receiving, processing, exceptions, slips, orders, and bookplates.</p>
       </div>
@@ -274,120 +308,95 @@ Major structural notes
     </div>
 
     <div id="tab-processing" class="tabPanel">
-      <!-- Structural cleanup: Processing is now a narrower daily-use workbench. -->
-      <div class="quickWorkGrid">
-        <div class="section">
-          <div class="sectionHeader">
-            <div class="sectionIntro">
-              <h2>Scan and find</h2>
-              <p class="hint">Primary scan/load area for daily processing work.</p>
-            </div>
-          </div>
-          <div class="stack">
-            <div class="scanField">
-              <label for="scan">Barcode scan / find item</label>
-              <input id="scan" class="mono" type="text" placeholder="Scan barcode here, then press Enter to load or create" />
-            </div>
-            <div class="inlineGrid2">
-              <div>
-                <label for="search">Search the queue</label>
-                <input id="search" type="text" placeholder="Search title, barcode, assignment, notes, or order" />
-              </div>
-              <div>
-                <label for="processingView">Queue display</label>
-                <select id="processingView">
-                  <option value="table">Table view</option>
-                  <option value="queue">Queue view</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="sectionHeader">
-            <div class="sectionIntro">
-              <h2>Session controls</h2>
-              <p class="hint">Lightweight controls for scan-heavy work.</p>
-            </div>
-          </div>
-          <div class="stack">
-            <div>
-              <label for="sessionModeEnabled">Session mode</label>
-              <select id="sessionModeEnabled">
-                <option value="0">Off</option>
-                <option value="1">On</option>
-              </select>
-            </div>
-            <div class="hint">Session mode keeps focus on open items only and can advance you through the queue after saving.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="sectionHeader">
-          <div class="sectionIntro">
-            <h2>Filters</h2>
-            <p class="hint">Reduced filters for the most common day-to-day queue views.</p>
-          </div>
-        </div>
-        <div class="filterGrid">
-          <div class="filterGroup"><label for="filterStage">Stage</label><select id="filterStage"></select></div>
-          <div class="filterGroup"><label for="filterDoneState">Completion</label><select id="filterDoneState"></select></div>
-          <div class="filterGroup"><label for="filterExceptions">Exceptions</label><select id="filterExceptions"></select></div>
-          <div class="filterGroup"><label for="filterSpecialHandling">Special handling</label><select id="filterSpecialHandling"></select></div>
-          <div class="filterGroup"><label for="filterAssignment">Assigned to</label><select id="filterAssignment"></select></div>
-          <div class="filterGroup"><label for="filterAging">Aging</label><select id="filterAging"></select></div>
-        </div>
-        <div class="filterActions" style="margin-top:10px;">
-          <button class="secondary smallBtn" type="button" onclick="clearFilters()">Clear filters</button>
-          <span class="hint">Queue cards on the Dashboard can also apply a focused queue filter.</span>
-        </div>
-      </div>
-
-      <div class="section tight">
-        <div class="sectionHeader">
-          <div class="sectionIntro">
-            <h2>Bulk actions</h2>
-            <p class="hint">Bulk updates for queue work. Slip printing is intentionally single-item only.</p>
-          </div>
-        </div>
-        <div class="bulkToolbar">
-          <span class="mono selectionCount" id="selectedCount">0 selected</span>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markReceived')">Mark received</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markCataloged')">Mark cataloged</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markCovered')">Mark covered</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('markDone')">Mark done</button>
-          <button class="secondary smallBtn" type="button" onclick="bulkAction('exportSelected')">Export selected</button>
-          <div class="dangerGroup">
-            <button class="danger smallBtn" type="button" onclick="bulkAction('delete')">Delete</button>
-          </div>
-        </div>
-      </div>
-
       <div class="processingWorkbench">
-        <div>
+        <div class="processingMain">
+          <div class="section scanFocusPanel">
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Scan-first processing</h2>
+                <p class="hint">Keep the scanner moving. Load an item, use a quick action, save, and jump back to the scan field.</p>
+              </div>
+              <div class="scanMeta">
+                <span class="focusHint">⌁ Scan focus stays ready</span>
+                <div id="scanStatus" class="hint">Ready for next barcode.</div>
+              </div>
+            </div>
+            <div class="scanHero">
+              <div class="stack">
+                <div class="scanField">
+                  <label for="scan">Barcode scan / find item</label>
+                  <input id="scan" class="mono" type="text" placeholder="Scan barcode here, then press Enter to load or create" autofocus />
+                </div>
+                <div class="inlineGrid2">
+                  <div>
+                    <label for="search">Search the queue</label>
+                    <input id="search" type="text" placeholder="Search title, barcode, assignment, notes, or order" />
+                  </div>
+                  <div>
+                    <label for="processingView">Queue display</label>
+                    <select id="processingView">
+                      <option value="table">Compact table</option>
+                      <option value="queue">Stage columns</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="fastPathCard">
+                <div>
+                  <h3>Fast path for normal items</h3>
+                  <p class="hint">For standard new books, use the large buttons below and skip the special-case sections unless an item needs them.</p>
+                </div>
+                <div>
+                  <label for="sessionModeEnabled">Session mode</label>
+                  <select id="sessionModeEnabled">
+                    <option value="0">Off</option>
+                    <option value="1">On</option>
+                  </select>
+                </div>
+                <div class="hint">Session mode keeps focus on open items only and can advance you to the next active record after saving or printing.</div>
+              </div>
+            </div>
+            <div id="currentItemCard" class="currentItemCard"></div>
+            <div class="quickActionGrid" id="editorQuickActions"></div>
+          </div>
+
           <div class="section">
             <div class="sectionHeader">
               <div class="sectionIntro">
-                <h2>Processing queue</h2>
-                <p class="hint">Review next steps, exceptions, aging, assignment, and quick row actions.</p>
+                <h2>Queue</h2>
+                <p class="hint">Default view shows only the key workflow details. Use filters or expand into stage columns when needed.</p>
               </div>
               <div id="summary" class="hint"></div>
+            </div>
+            <div class="filterToggleRow" style="margin-bottom:10px;">
+              <div class="hint">Cleaner filters for common use. Extra details stay out of the way until needed.</div>
+              <button class="secondary smallBtn" id="toggleFiltersBtn" type="button" onclick="toggleFiltersPanel()">Hide filters</button>
+            </div>
+            <div id="processingFiltersPanel">
+              <div class="compactFilterGrid">
+                <div class="filterGroup"><label for="filterStage">Stage</label><select id="filterStage"></select></div>
+                <div class="filterGroup"><label for="filterDoneState">Completion</label><select id="filterDoneState"></select></div>
+                <div class="filterGroup"><label for="filterExceptions">Exceptions</label><select id="filterExceptions"></select></div>
+                <div class="filterGroup"><label for="filterSpecialHandling">Special handling</label><select id="filterSpecialHandling"></select></div>
+                <div class="filterGroup"><label for="filterAssignment">Assigned to</label><select id="filterAssignment"></select></div>
+                <div class="filterGroup"><label for="filterAging">Aging</label><select id="filterAging"></select></div>
+              </div>
+              <div class="filterActions" style="margin-top:10px;">
+                <button class="secondary smallBtn" type="button" onclick="clearFilters()">Clear filters</button>
+                <span class="hint">Dashboard queue cards still apply the focused queue filter here.</span>
+              </div>
             </div>
             <div id="filterStatusBar" class="filterStatusBar hidden"></div>
             <div id="tableViewWrap">
               <div class="tableWrap">
-                <table>
+                <table class="queueTable">
                   <thead>
                     <tr>
                       <th><input id="selectAllVisible" type="checkbox" /></th>
-                      <th>Priority</th>
                       <th>Stage</th>
                       <th>Next step</th>
                       <th>Item</th>
-                      <th>Assignment</th>
                       <th>Flags</th>
-                      <th>Slip</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -399,65 +408,131 @@ Major structural notes
               <div id="queueBoard" class="queueBoard"></div>
             </div>
           </div>
+
+          <div class="section tight">
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Bulk actions</h2>
+                <p class="hint">Available when you intentionally select multiple queue items.</p>
+              </div>
+            </div>
+            <div class="bulkToolbar">
+              <span class="mono selectionCount" id="selectedCount">0 selected</span>
+              <button class="secondary smallBtn" type="button" onclick="bulkAction('markReceived')">Mark received</button>
+              <button class="secondary smallBtn" type="button" onclick="bulkAction('markCataloged')">Mark cataloged</button>
+              <button class="secondary smallBtn" type="button" onclick="bulkAction('markCovered')">Mark covered</button>
+              <button class="secondary smallBtn" type="button" onclick="bulkAction('markDone')">Mark done</button>
+              <button class="secondary smallBtn" type="button" onclick="bulkAction('exportSelected')">Export selected</button>
+              <div class="dangerGroup">
+                <button class="danger smallBtn" type="button" onclick="bulkAction('delete')">Delete</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div>
           <div class="section">
-            <h2>Item editor</h2>
-            <div id="duplicateWarning" class="hint"></div>
-            <div class="row"><label for="barcode">Barcode</label><input id="barcode" class="mono" type="text" placeholder="Scan or type barcode" /></div>
-            <div class="row"><label for="title">Title</label><input id="title" type="text" placeholder="Title" /></div>
-            <div class="row"><label for="author">Author</label><input id="author" type="text" placeholder="Author" /></div>
-            <div class="inlineGrid3">
-              <div><label for="materialType">Material type</label><select id="materialType"></select></div>
-              <div><label for="workType">Work type</label><select id="workType"><option value="NEW">New processing</option><option value="FIX">General fixes</option></select></div>
-              <div><label for="completionState">Completion state</label><select id="completionState"></select></div>
-            </div>
-            <h3 style="margin:12px 0 8px;">Workflow status</h3>
-            <div class="inlineGrid4 generalFixHide">
-              <div><label for="received">Received</label><select id="received"><option>NO</option><option>YES</option></select></div>
-              <div><label for="cataloged">Cataloged</label><select id="cataloged"><option>NO</option><option>YES</option></select></div>
-              <div><label for="spine">Spine label</label><select id="spine"><option>NO</option><option>YES</option></select></div>
-              <div><label for="covered">Covered</label><select id="covered"><option>NO</option><option>YES</option></select></div>
-            </div>
-            <div class="inlineGrid4" style="margin-top:10px;">
-              <div><label for="minimalCover">Minimal covering</label><div><input id="minimalCover" type="checkbox" /></div></div>
-              <div><label for="bookplate">Bookplate printed</label><select id="bookplate"><option>NO</option><option>YES</option></select></div>
-              <div id="fixDetailsRow" class="hidden generalFixOnly"><label for="fixDetails">Fix details</label><input id="fixDetails" type="text" placeholder="Describe required fixes" /></div>
-              <div id="fixDoneRow" class="hidden generalFixOnly"><label for="fixDone">Fix done</label><div><input id="fixDone" type="checkbox" /></div></div>
-            </div>
-            <h3 style="margin:12px 0 8px;">Special handling and exceptions</h3>
-            <div class="inlineGrid3 generalFixHide">
-              <div><label for="holdName">Hold for</label><input id="holdName" type="text" placeholder="Name or cardholder" /></div>
-              <div><label for="adoptedAmt">Adopted $</label><input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-              <div><label for="donated">Donation</label><input id="donated" type="text" placeholder="Donor name" /></div>
-              <div><label for="memorial">Memorial</label><input id="memorial" type="text" placeholder="In memory/honor of" /></div>
-              <div><label for="paidPrice">Paid price</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-              <div><label for="retailPrice">Retail price</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-            </div>
-            <div class="inlineGrid3" style="margin-top:10px;">
-              <div><label for="exceptionType">Exception type</label><select id="exceptionType"></select></div>
-              <div><label for="assignedTo">Assigned to</label><input id="assignedTo" type="text" placeholder="Staff initials or name" /></div>
-              <div><label for="currentLocation">Current location</label><input id="currentLocation" type="text" placeholder="Cart, cataloging, repair shelf..." /></div>
-            </div>
-            <div class="row rowTop"><label for="handoffNotes">Handoff notes</label><textarea id="handoffNotes" placeholder="Notes for the next staff handoff"></textarea></div>
-            <div class="row rowTop"><label for="exceptionNotes">Exception notes</label><textarea id="exceptionNotes" placeholder="Problem details, follow-up, vendor notes"></textarea></div>
-            <div class="row rowTop"><label for="itemNotes">Slip / item notes</label><textarea id="itemNotes" placeholder="Item notes for the slip"></textarea></div>
-            <div class="row"><label for="manualDone">Mark done manually</label><div><input id="manualDone" type="checkbox" /></div></div>
-            <div class="inlineGrid2">
-              <div>
-                <h3>Derived status</h3>
-                <div class="badgeRow"><span id="editorStageBadge" class="pill info"></span><span id="editorNextStepBadge" class="pill warn"></span></div>
-              </div>
-              <div>
-                <h3>History stamps</h3>
-                <div class="hint mono" id="editorHistorySummary">No timestamps yet.</div>
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Item editor</h2>
+                <p class="hint">Common fields stay up front. Special handling, exceptions, and history stay available but out of the way.</p>
               </div>
             </div>
-            <h3 style="margin:12px 0 8px;">Slip tracking</h3>
-            <div class="inlineGrid2">
-              <div><label for="slipPrinted">Slip printed</label><input id="slipPrinted" type="text" disabled /></div>
-              <div><label for="printedAt">Printed for</label><input id="printedAt" type="text" disabled /></div>
+            <div id="duplicateWarning" class="duplicateAlert"></div>
+            <div class="editorSections">
+              <details class="editorSection" open>
+                <summary><span>Basic Info</span><span class="hint">Barcode, title, author, type</span></summary>
+                <div class="editorSectionBody">
+                  <div class="row"><label for="barcode">Barcode</label><input id="barcode" class="mono" type="text" placeholder="Scan or type barcode" /></div>
+                  <div class="row"><label for="title">Title</label><input id="title" type="text" placeholder="Title" /></div>
+                  <div class="row"><label for="author">Author</label><input id="author" type="text" placeholder="Author" /></div>
+                  <div class="inlineGrid3">
+                    <div><label for="materialType">Material type</label><select id="materialType"></select></div>
+                    <div><label for="workType">Work type</label><select id="workType"><option value="NEW">New processing</option><option value="FIX">General fixes</option></select></div>
+                    <div><label for="completionState">Completion state</label><select id="completionState"></select></div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="editorSection" open>
+                <summary><span>Processing Status</span><span class="hint">Workflow progress and fast-path completion</span></summary>
+                <div class="editorSectionBody">
+                  <div class="inlineGrid4 generalFixHide">
+                    <div><label for="received">Received</label><select id="received"><option>NO</option><option>YES</option></select></div>
+                    <div><label for="cataloged">Cataloged</label><select id="cataloged"><option>NO</option><option>YES</option></select></div>
+                    <div><label for="spine">Spine label</label><select id="spine"><option>NO</option><option>YES</option></select></div>
+                    <div><label for="covered">Covered</label><select id="covered"><option>NO</option><option>YES</option></select></div>
+                  </div>
+                  <div class="inlineGrid4">
+                    <div><label for="minimalCover">Minimal covering</label><div><input id="minimalCover" type="checkbox" /></div></div>
+                    <div><label for="bookplate">Bookplate printed</label><select id="bookplate"><option>NO</option><option>YES</option></select></div>
+                    <div id="fixDetailsRow" class="hidden generalFixOnly"><label for="fixDetails">Fix details</label><input id="fixDetails" type="text" placeholder="Describe required fixes" /></div>
+                    <div id="fixDoneRow" class="hidden generalFixOnly"><label for="fixDone">Fix done</label><div><input id="fixDone" type="checkbox" /></div></div>
+                  </div>
+                  <div class="subtleCard">
+                    <div class="inlineGrid2">
+                      <div>
+                        <h3>Derived status</h3>
+                        <div class="badgeRow"><span id="editorStageBadge" class="pill info"></span><span id="editorNextStepBadge" class="pill warn"></span></div>
+                      </div>
+                      <div>
+                        <h3>Slip tracking</h3>
+                        <div class="inlineGrid2">
+                          <div><label for="slipPrinted">Slip printed</label><input id="slipPrinted" type="text" disabled /></div>
+                          <div><label for="printedAt">Printed for</label><input id="printedAt" type="text" disabled /></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row" style="margin-top:12px;"><label for="manualDone">Mark done manually</label><div><input id="manualDone" type="checkbox" /></div></div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="editorSection" id="specialHandlingSection">
+                <summary><span>Special Handling</span><span class="hint">Hold, donation, memorial, prices, and work-location details</span></summary>
+                <div class="editorSectionBody">
+                  <div class="inlineGrid3 generalFixHide">
+                    <div><label for="holdName">Hold for</label><input id="holdName" type="text" placeholder="Name or cardholder" /></div>
+                    <div><label for="adoptedAmt">Adopted $</label><input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                    <div><label for="donated">Donation</label><input id="donated" type="text" placeholder="Donor name" /></div>
+                    <div><label for="memorial">Memorial</label><input id="memorial" type="text" placeholder="In memory/honor of" /></div>
+                    <div><label for="paidPrice">Paid price</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                    <div><label for="retailPrice">Retail price</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                  </div>
+                  <div class="inlineGrid3">
+                    <div><label for="assignedTo">Assigned to</label><input id="assignedTo" type="text" placeholder="Staff initials or name" /></div>
+                    <div><label for="currentLocation">Current location</label><input id="currentLocation" type="text" placeholder="Cart, cataloging, repair shelf..." /></div>
+                    <div><label for="itemNotes">Slip / item notes</label><input id="itemNotes" type="text" placeholder="Brief note for slip or handoff" /></div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="editorSection" id="exceptionsSection">
+                <summary><span>Exceptions / Notes</span><span class="hint">Only open when an item needs attention</span></summary>
+                <div class="editorSectionBody">
+                  <div class="inlineGrid3">
+                    <div><label for="exceptionType">Exception type</label><select id="exceptionType"></select></div>
+                    <div class="subtleCard"><h3>Exception visibility</h3><div id="exceptionVisibility" class="hint">No active exception.</div></div>
+                    <div class="subtleCard"><h3>Work type guidance</h3><div id="workTypeHelper" class="hint">Standard new-book flow is active.</div></div>
+                  </div>
+                  <div class="row rowTop"><label for="handoffNotes">Handoff notes</label><textarea id="handoffNotes" placeholder="Notes for the next staff handoff"></textarea></div>
+                  <div class="row rowTop"><label for="exceptionNotes">Exception notes</label><textarea id="exceptionNotes" placeholder="Problem details, follow-up, vendor notes"></textarea></div>
+                </div>
+              </details>
+
+              <details class="editorSection" open>
+                <summary><span>History</span><span class="hint">Timeline and timestamps</span></summary>
+                <div class="editorSectionBody">
+                  <div>
+                    <h3>History stamps</h3>
+                    <div class="hint mono" id="editorHistorySummary">No timestamps yet.</div>
+                  </div>
+                  <div>
+                    <h3>Activity timeline</h3>
+                    <div id="activityTimeline" class="timeline"></div>
+                  </div>
+                </div>
+              </details>
             </div>
             <div class="btnRow">
               <button type="button" onclick="printSlip()">Print slip</button>
@@ -467,15 +542,20 @@ Major structural notes
               <button class="secondary" type="button" onclick="clearEditor()">Clear</button>
               <button class="danger" type="button" onclick="deleteItem()">Delete</button>
             </div>
-            <div class="section tight" style="margin-top:12px; margin-bottom:0;">
-              <h3>Activity timeline</h3>
-              <div id="activityTimeline" class="timeline"></div>
+          </div>
+
+          <div class="section recentScanCard">
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Recently scanned</h2>
+                <p class="hint">Quick jump back to items touched during this session.</p>
+              </div>
             </div>
+            <div id="recentScansList" class="recentList"></div>
           </div>
         </div>
       </div>
     </div>
-
     <div id="tab-orders" class="tabPanel">
       <!-- Structural cleanup: receiving remains on Orders to keep Processing focused. -->
       <div class="section">
@@ -629,6 +709,9 @@ let selectedIds = new Set();
 let pendingImportData = null;
 let activeCardFilter = "";
 let activeTab = "dashboard";
+let recentScannedIds = [];
+let filtersExpanded = true;
+let pendingSlipCleanup = null;
 
 function structuredCloneSafe(value){ return JSON.parse(JSON.stringify(value)); }
 function nowISO(){ return new Date().toISOString(); }
@@ -641,6 +724,9 @@ function uid(){ return "item_" + Math.random().toString(16).slice(2) + Date.now(
 function orderUid(){ return "order_" + Math.random().toString(16).slice(2) + Date.now().toString(16); }
 function escapeHTML(str){ return String(str ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
 function safeText(value, fallback=""){ return (value ?? fallback).toString(); }
+function focusScanInput(){ const el = $("scan"); if(!el) return; requestAnimationFrame(() => { el.focus(); el.select?.(); }); }
+function setScanStatus(message){ const el = $("scanStatus"); if(el) el.textContent = message; }
+function rememberRecentScan(id){ if(!id) return; recentScannedIds = [id, ...recentScannedIds.filter(x => x !== id)].slice(0,8); }
 function normalizeExceptionType(value){
   const raw = safeText(value).trim();
   if(!raw) return "";
@@ -935,6 +1021,78 @@ function renderDashboardPanels(){
   queueTarget.innerHTML = queue.length ? queue.map(({it,score,stage,nextStep}) => `<div class="summaryListItem"><div class="top"><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><span class="pill info">P${score}</span></div><div class="badgeRow"><span class="pill soft">${escapeHTML(stage)}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ``}</div><div class="hint">${escapeHTML(nextStep)}</div></div>`).join("") : `<div class="emptyState">No open queue items match the current view.</div>`;
 }
 function rowClasses(it){ const classes = []; if(hasException(it)) classes.push("rowException"); if(isSpecial(it)) classes.push("rowSpecial"); if(["7+","14+"].includes(getAgingBucket(it)) && !isDone(it)) classes.push("rowOverdue"); if(isDone(it)) classes.push("rowDone"); return classes.join(" "); }
+function toggleFiltersPanel(force){ filtersExpanded = typeof force === "boolean" ? force : !filtersExpanded; $("processingFiltersPanel").classList.toggle("hidden", !filtersExpanded); $("toggleFiltersBtn").textContent = filtersExpanded ? "Hide filters" : "Show filters"; }
+function quickActionCatalog(){
+  return [
+    ["received","Mark Received","Set intake complete and move to cataloging."],
+    ["cataloged","Mark Cataloged","Advance common items past cataloging."],
+    ["spine","Mark Spine Label Done","Record the label step without opening more controls."],
+    ["covered","Mark Covered","Complete covering for standard items."],
+    ["bookplate","Mark Bookplate Added","Finish donation or memorial bookplate work."],
+    ["done", "Ready for Shelving", "Finish the normal path and mark complete."],
+    ["attention", "Needs Repair / Attention", "Move the item into repair attention flow."]
+  ];
+}
+function renderCurrentItemCard(){
+  const target = $("currentItemCard"); if(!target) return; const source = activeId ? (data.items.find(x => x.id === activeId) || getEditorItem()) : getEditorItem();
+  const item = migrateItem(source || emptyItem());
+  const stage = getWorkflowStage(item); const nextStep = getNextStep(item); const flags = [];
+  if(hasException(item)) flags.push(`<span class="pill exception">${escapeHTML(normalizeExceptionType(item.exceptionType))}</span>`);
+  if(isGeneralFix(item)) flags.push('<span class="pill warn">Repair flow</span>');
+  if(hasHold(item)) flags.push('<span class="pill special">Hold</span>');
+  if(hasBookplateNeed(item)) flags.push('<span class="pill warn">Slip needed</span>');
+  if(isSpecial(item) && !hasBookplateNeed(item)) flags.push('<span class="pill">Special handling</span>');
+  if(item.slipPrinted !== 'YES') flags.push('<span class="pill info">Slip not printed</span>');
+  target.innerHTML = `
+    <div class="currentItemHeader">
+      <div class="currentItemTitle">
+        <h3>Current item</h3>
+        <strong>${escapeHTML(item.title || '(untitled item)')}</strong>
+        <div class="hint">${escapeHTML(item.author || 'No author entered yet.')}</div>
+      </div>
+      <div class="badgeRow">${flags.length ? flags.join('') : '<span class="pill done">Normal item</span>'}</div>
+    </div>
+    <div class="currentItemMeta">
+      <div class="metaBlock"><span class="label">Barcode</span><span class="value mono">${escapeHTML(item.barcode || 'Waiting for scan')}</span></div>
+      <div class="metaBlock"><span class="label">Material type</span><span class="value">${escapeHTML(item.materialType || 'Book')}</span></div>
+      <div class="metaBlock"><span class="label">Current stage</span><span class="value">${escapeHTML(stage)}</span></div>
+      <div class="metaBlock"><span class="label">Next step</span><span class="value">${escapeHTML(nextStep)}</span></div>
+    </div>`;
+}
+function renderEditorQuickActions(){
+  const target = $("editorQuickActions"); if(!target) return; const item = activeId ? data.items.find(x => x.id === activeId) || getEditorItem() : getEditorItem(); const it = migrateItem(item);
+  target.innerHTML = quickActionCatalog().map(([action,label,desc]) => {
+    let disabled = false;
+    if(action === 'received') disabled = isGeneralFix(it) || it.received === 'YES';
+    if(action === 'cataloged') disabled = isGeneralFix(it) || it.cataloged === 'YES';
+    if(action === 'spine') disabled = isGeneralFix(it) || it.materialType === 'Kit' || it.spine === 'YES';
+    if(action === 'covered') disabled = isGeneralFix(it) || getWorkflowStage(it) !== 'Covering';
+    if(action === 'bookplate') disabled = getWorkflowStage(it) !== 'Bookplate';
+    if(action === 'done') disabled = isDone(it);
+    if(action === 'attention') disabled = isGeneralFix(it) && hasException(it);
+    return `<button type="button" class="secondary actionBtn" ${disabled ? 'disabled' : ''} onclick="handleEditorAction('${action}')">${escapeHTML(label)}<span>${escapeHTML(desc)}</span></button>`;
+  }).join('');
+}
+function handleEditorAction(action){
+  let item = activeId ? data.items.find(x => x.id === activeId) : null;
+  if(!item){ item = getEditorItem(); if(!item.barcode){ alert('Scan or enter a barcode first.'); $("barcode").focus(); return; } const idx = data.items.findIndex(x => x.id === item.id); if(idx >= 0) data.items[idx] = migrateItem(item); else data.items.push(migrateItem(item)); activeId = item.id; item = data.items.find(x => x.id === activeId); }
+  if(action === 'attention'){ item.workType = 'FIX'; item.exceptionType = normalizeExceptionType(item.exceptionType || 'Other'); item.completionState = 'In Progress'; logActivity(item, 'Moved to repair / attention'); }
+  else applyQuickActionToItem(item, action);
+  persist(); loadIntoEditor(item); focusScanInput();
+}
+function updateEditorPanels(){
+  const draft = getEditorItem();
+  const specialOpen = isSpecial(draft) || hasBookplateNeed(draft);
+  const exceptionOpen = hasException(draft) || !!draft.exceptionNotes || !!draft.handoffNotes;
+  $("specialHandlingSection").open = specialOpen;
+  $("exceptionsSection").open = exceptionOpen;
+  const exceptionEl = $("exceptionVisibility");
+  if(exceptionEl) exceptionEl.innerHTML = hasException(draft) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(draft.exceptionType))}</span><div class="hint" style="margin-top:6px;">This item should stay visually separated until resolved.</div>` : 'No active exception.';
+}
+function renderRecentScans(){
+  const target = $("recentScansList"); if(!target) return; const items = recentScannedIds.map(id => data.items.find(it => it.id === id)).filter(Boolean);
+  target.innerHTML = items.length ? items.map(it => `<button type="button" class="recentItem" onclick="loadById('${it.id}')"><div class="recentItemTop"><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span></div><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="hint">${escapeHTML(getNextStep(it))}</div></button>`).join('') : `<div class="emptyState">No recent scans yet.</div>`;
+}
 function renderFilterStatus(rows){
   const bar = $("filterStatusBar"); if(!activeCardFilter){ bar.classList.add("hidden"); bar.innerHTML = ""; return; }
   const meta = getCardMeta(activeCardFilter); bar.classList.remove("hidden");
@@ -943,46 +1101,43 @@ function renderFilterStatus(rows){
 function clearQueueCardFilter(){ activeCardFilter = ""; refreshAll(); }
 function renderTable(){
   const rows = getVisibleItems(); const tbody = $("itemsTable"); tbody.innerHTML = "";
-  $("summary").textContent = `Visible ${rows.length} • Total ${data.items.length} • Open ${data.items.filter(it => !isDone(it)).length} • Exceptions ${data.items.filter(hasException).length} • Done today ${data.items.filter(it => it.doneAt && isTodayISO(it.doneAt)).length}`;
+  $("summary").textContent = `Visible ${rows.length} • Open ${data.items.filter(it => !isDone(it)).length} • Exceptions ${data.items.filter(hasException).length} • Done today ${data.items.filter(it => it.doneAt && isTodayISO(it.doneAt)).length}`;
   renderFilterStatus(rows);
-  if(rows.length === 0){ tbody.innerHTML = `<tr><td colspan="9"><div class="emptyState">No items match the current filters. Clear a filter, switch queue focus, or scan a new barcode to begin.</div></td></tr>`; return; }
+  if(rows.length === 0){ tbody.innerHTML = `<tr><td colspan="6"><div class="emptyState">No items match the current filters. Clear a filter, switch queue focus, or scan a new barcode to begin.</div></td></tr>`; return; }
   rows.forEach(({it,score,why,stage,nextStep}) => {
     const flags = [];
-    if(isGeneralFix(it)) flags.push(`<span class="pill warn">General Fix</span>`);
     if(hasException(it)) flags.push(`<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>`);
+    if(isGeneralFix(it)) flags.push(`<span class="pill warn">Repair</span>`);
     if(hasHold(it)) flags.push(`<span class="pill special">Hold</span>`);
     if(hasDonation(it)) flags.push(`<span class="pill">Donation</span>`);
     if(hasMemorial(it)) flags.push(`<span class="pill">Memorial</span>`);
     if(hasAdopted(it)) flags.push(`<span class="pill">Adopted</span>`);
-    if(hasBookplateNeed(it)) flags.push(`<span class="pill warn">Needs bookplate</span>`);
-    if(it.orderNumber) flags.push(`<span class="pill info">Order #${escapeHTML(it.orderNumber)}</span>`);
+    if(hasBookplateNeed(it)) flags.push(`<span class="pill warn">Bookplate</span>`);
+    if(it.slipPrinted !== 'YES') flags.push(`<span class="pill info">Slip needed</span>`);
     if(it.currentLocation) flags.push(`<span class="pill soft">${escapeHTML(it.currentLocation)}</span>`);
     const title = [it.title || "", it.author || ""].filter(Boolean).join(" — ");
     const tr = document.createElement("tr"); tr.className = rowClasses(it);
     tr.innerHTML = `
       <td><input type="checkbox" ${selectedIds.has(it.id) ? "checked" : ""} onchange="toggleSelect('${it.id}', this.checked)" /></td>
-      <td><div class="priorityScore mono" title="${escapeHTML(why.join(', '))}">${score}</div><div class="hint">${escapeHTML(getAgingBucket(it))} aging</div></td>
-      <td><span class="pill info">${escapeHTML(stage)}</span></td>
-      <td><strong>${escapeHTML(nextStep)}</strong><div class="hint">${hasException(it) ? 'Needs review before advancing' : 'Next workflow action'}</div></td>
-      <td><div class="tableItemCell"><strong>${escapeHTML(title || '(untitled)')}</strong><div class="tableItemMeta"><span class="hint mono">${escapeHTML(it.barcode || '')}</span><span class="pill soft">${escapeHTML(it.materialType || 'Item')}</span></div></div></td>
-      <td><strong>${escapeHTML(it.assignedTo || '—')}</strong><div class="hint">${escapeHTML(it.currentLocation || 'No location set')}</div></td>
-      <td>${flags.length ? flags.join(' ') : '<span class="hint">No flags</span>'}</td>
-      <td>${it.slipPrinted === 'YES' ? '<span class="pill done">Printed</span>' : '<span class="pill">Not printed</span>'}<div class="hint">${escapeHTML(it.printedAt || 'Not yet printed')}</div></td>
-      <td><div class="actions">${quickActionButtons(it)}</div></td>`;
+      <td><div class="badgeRow"><span class="pill info">${escapeHTML(stage)}</span><span class="pill soft mono" title="${escapeHTML(why.join(', '))}">P${score}</span></div><div class="hint">${escapeHTML(getAgingBucket(it))} aging</div></td>
+      <td><strong>${escapeHTML(nextStep)}</strong><div class="hint">${hasException(it) ? 'Resolve before advancing' : 'Suggested next staff action'}</div></td>
+      <td><div class="tableItemCell"><strong>${escapeHTML(title || '(untitled)')}</strong><div class="tableItemMeta"><span class="hint mono">${escapeHTML(it.barcode || '')}</span><span class="pill soft">${escapeHTML(it.materialType || 'Item')}</span>${it.assignedTo ? `<span class="pill soft">${escapeHTML(it.assignedTo)}</span>` : ''}</div></div></td>
+      <td>${flags.length ? `<div class="badgeRow">${flags.join('')}</div>` : '<span class="hint">No flags</span>'}</td>
+      <td><div class="queueActionStack"><div class="queuePrimaryAction">${quickActionButtons(it)}</div><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open editor</button></div></td>`;
     tbody.appendChild(tr);
   });
 }
 function quickActionButtons(it){
   const buttons = [];
-  if(it.received !== "YES" && !isGeneralFix(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Mark Received</button>`);
-  if(it.received === "YES" && it.cataloged !== "YES" && !isGeneralFix(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','cataloged')">Mark Cataloged</button>`);
-  if(it.cataloged === "YES" && it.spine !== "YES" && !isGeneralFix(it) && it.materialType !== "Kit") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','spine')">Spine Done</button>`);
-  if(getWorkflowStage(it) === "Covering") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','covered')">Mark Covered</button>`);
-  if(getWorkflowStage(it) === "Bookplate") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','bookplate')">Bookplate Printed</button>`);
-  if(isGeneralFix(it) && !it.fixDone) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','fixDone')">Fix Done</button>`);
-  if(!isDone(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','done')">Mark Done</button>`); else buttons.push(`<button class="smallBtn ghost" onclick="quickAction('${it.id}','reopen')">Reopen</button>`);
-  buttons.push(`<button class="smallBtn secondary" onclick="loadAndPrint('${it.id}')">Print Slip</button>`);
-  buttons.push(`<button class="smallBtn secondary" onclick="loadById('${it.id}')">Open editor</button>`);
+  if(it.received !== "YES" && !isGeneralFix(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button>`);
+  else if(it.cataloged !== "YES" && !isGeneralFix(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','cataloged')">Cataloged</button>`);
+  else if(it.spine !== "YES" && !isGeneralFix(it) && it.materialType !== "Kit") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','spine')">Spine</button>`);
+  else if(getWorkflowStage(it) === "Covering") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','covered')">Covered</button>`);
+  else if(getWorkflowStage(it) === "Bookplate") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','bookplate')">Bookplate</button>`);
+  else if(isGeneralFix(it) && !it.fixDone) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','fixDone')">Fix done</button>`);
+  else if(!isDone(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','done')">Ready</button>`);
+  else buttons.push(`<button class="smallBtn ghost" onclick="quickAction('${it.id}','reopen')">Reopen</button>`);
+  buttons.push(`<button class="smallBtn secondary" onclick="loadAndPrint('${it.id}')">Slip</button>`);
   return buttons.join('');
 }
 function renderQueue(){
@@ -1047,7 +1202,7 @@ function applyQuickActionToItem(it, action){
 function finalizeItemCompletion(it){ if(isGeneralFix(it)) it.fixDone = true; else { it.received = "YES"; it.cataloged = "YES"; if(it.materialType !== "Kit") it.spine = "YES"; if(!["DVD","Audiobook","Board game"].includes(it.materialType) && !it.minimalCover) it.covered = "YES"; if(hasBookplateNeed(it)) it.bookplate = "YES"; } if(it.completionState === "In Progress") it.completionState = hasHold(it) ? "Ready for hold pickup" : "Ready to shelve"; ensureTimestamp(it, "doneAt"); }
 function reopenItem(it){ it.completionState = "In Progress"; it.manualDone = false; it.doneAt = ""; if(isGeneralFix(it)) it.fixDone = false; }
 function updateItemDerivedState(it){ it.exceptionType = normalizeExceptionType(it.exceptionType); if(it.completionState !== "In Progress" || it.manualDone) ensureTimestamp(it, "doneAt"); if(hasBookplateNeed(it) && it.bookplate === "YES") ensureTimestamp(it, "bookplatePrintedAt"); it.statusSig = statusSignature(it); }
-function quickAction(id, action){ const it = data.items.find(x => x.id === id); if(!it) return; applyQuickActionToItem(it, action); persist(); }
+function quickAction(id, action){ const it = data.items.find(x => x.id === id); if(!it) return; applyQuickActionToItem(it, action); rememberRecentScan(it.id); setScanStatus(`${it.barcode || it.title || "Item"}: ${action}.`); persist(); }
 
 function getEditorItem(){
   const existing = data.items.find(x => x.id === activeId) || emptyItem({ id: activeId || uid() });
@@ -1063,16 +1218,15 @@ function getEditorItem(){
   updateItemDerivedState(draft); return draft;
 }
 function loadIntoEditor(it){
-  activeId = it.id; $("barcode").value = it.barcode || ""; $("title").value = it.title || ""; $("author").value = it.author || ""; $("materialType").value = it.materialType || "Book";
+  activeId = it.id; rememberRecentScan(it.id); setScanStatus(`Loaded ${it.barcode || it.title || "item"}.`); $("barcode").value = it.barcode || ""; $("title").value = it.title || ""; $("author").value = it.author || ""; $("materialType").value = it.materialType || "Book";
   $("workType").value = it.workType || "NEW"; $("received").value = it.received || "NO"; $("cataloged").value = it.cataloged || "NO"; $("spine").value = it.spine || "NO"; $("covered").value = it.covered || "NO";
   $("minimalCover").checked = it.minimalCover === true; $("paidPrice").value = it.paidPrice ?? ""; $("retailPrice").value = it.retailPrice ?? ""; $("manualDone").checked = it.manualDone === true;
   $("fixDetails").value = it.fixDetails || ""; $("fixDone").checked = it.fixDone === true; $("holdName").value = it.holdName || ""; $("adoptedAmt").value = it.adoptedAmt ?? ""; $("bookplate").value = it.bookplate || "NO";
   $("donated").value = it.donated || ""; $("memorial").value = it.memorial || ""; $("itemNotes").value = it.notes || ""; $("slipPrinted").value = it.slipPrinted || "NO"; $("printedAt").value = it.printedAt || "";
   $("completionState").value = it.completionState || "In Progress"; $("exceptionType").value = normalizeExceptionType(it.exceptionType || ""); $("exceptionNotes").value = it.exceptionNotes || ""; $("assignedTo").value = it.assignedTo || "";
-  $("currentLocation").value = it.currentLocation || ""; $("handoffNotes").value = it.handoffNotes || ""; toggleWorkTypeFields(); syncReceipt(); renderActivityTimeline(it); syncDuplicateWarnings();
-}
-function clearEditor(){ activeId = null; loadIntoEditor(emptyItem()); activeId = null; $("scan").focus(); }
-function toggleWorkTypeFields(){ const isFix = $("workType").value === "FIX"; document.querySelectorAll(".generalFixHide").forEach(el => el.classList.toggle("hidden", isFix)); document.querySelectorAll(".generalFixOnly").forEach(el => el.classList.toggle("hidden", !isFix)); }
+  $("currentLocation").value = it.currentLocation || ""; $("handoffNotes").value = it.handoffNotes || ""; toggleWorkTypeFields(); syncReceipt(); renderActivityTimeline(it); syncDuplicateWarnings(); updateEditorPanels(); }
+function clearEditor(){ activeId = null; loadIntoEditor(emptyItem()); activeId = null; setScanStatus("Ready for next barcode."); focusScanInput(); }
+function toggleWorkTypeFields(){ const isFix = $("workType").value === "FIX"; document.querySelectorAll(".generalFixHide").forEach(el => el.classList.toggle("hidden", isFix)); document.querySelectorAll(".generalFixOnly").forEach(el => el.classList.toggle("hidden", !isFix)); const helper = $("workTypeHelper"); if(helper) helper.textContent = isFix ? "General fix mode is active. Repair-specific fields are shown and normal processing steps are minimized." : "Standard new-book flow is active. Use quick actions for the common path."; }
 function saveItem(){
   const it = getEditorItem(); if(!it.barcode){ alert("Barcode is required (scan or type it)."); $("barcode").focus(); return; }
   let prev = data.items.find(x => x.id === it.id) || null;
@@ -1087,15 +1241,15 @@ function saveItem(){
   updateItemDerivedState(it);
   const newSig = statusSignature(it); const prevSig = prev ? statusSignature(prev) : ""; if(newSig !== prevSig) it.statusChangedAt = nowISO();
   const index = data.items.findIndex(x => x.id === it.id); if(index >= 0) data.items[index] = migrateItem(it); else data.items.push(migrateItem(it));
-  persist(); if($("sessionModeEnabled").value === "1") loadNextActiveItem(it.id);
+  persist(); setScanStatus(`Saved ${it.barcode || it.title || "item"}.`); if($("sessionModeEnabled").value === "1") loadNextActiveItem(it.id); else focusScanInput();
 }
 function deleteItem(){ if(!activeId){ alert("No item loaded."); return; } if(!confirm("Delete this item?")) return; data.items = data.items.filter(x => x.id !== activeId); selectedIds.delete(activeId); clearEditor(); persist(); }
 function renderActivityTimeline(it){ const timeline = $("activityTimeline"); const activities = (it.activity || []).slice(0,20); if(activities.length === 0){ timeline.innerHTML = `<div class="emptyState">No activity yet.</div>`; return; } timeline.innerHTML = activities.map(entry => `<div class="timelineItem"><strong>${escapeHTML(entry.action)}</strong><div class="hint mono">${escapeHTML(new Date(entry.at).toLocaleString())}</div><div class="hint">${escapeHTML(entry.note || '')}</div></div>`).join(""); }
 function syncDuplicateWarnings(){
   const barcode = $("barcode").value.trim(); const title = $("title").value.trim().toLowerCase(); const orderNumber = (data.items.find(x => x.id === activeId)?.orderNumber || "").trim(); const warnings = [];
-  if(barcode){ const dupes = data.items.filter(it => it.id !== activeId && (it.barcode || "").trim() === barcode); if(dupes.length) warnings.push(`Duplicate barcode: ${dupes.length} existing item(s).`); }
-  if(title && orderNumber){ const dupes = data.items.filter(it => it.id !== activeId && (it.title || "").trim().toLowerCase() === title && (it.orderNumber || "") === orderNumber); if(dupes.length) warnings.push(`Duplicate title within order ${orderNumber}.`); }
-  $("duplicateWarning").innerHTML = warnings.length ? `<span class="pill exception">${warnings.join(' ')}</span>` : `<span class="hint">No duplicate conflicts detected.</span>`;
+  if(barcode){ const dupes = data.items.filter(it => it.id !== activeId && (it.barcode || "").trim() === barcode); if(dupes.length) warnings.push(`<span class="pill exception">Duplicate barcode</span><div class="hint">${dupes.length} existing item(s) already use ${escapeHTML(barcode)}.</div>`); }
+  if(title && orderNumber){ const dupes = data.items.filter(it => it.id !== activeId && (it.title || "").trim().toLowerCase() === title && (it.orderNumber || "") === orderNumber); if(dupes.length) warnings.push(`<span class="pill warn">Possible order duplicate</span><div class="hint">Matching title already exists in order ${escapeHTML(orderNumber)}.</div>`); }
+  $("duplicateWarning").innerHTML = warnings.length ? warnings.join('') : `<span class="pill done">No duplicate warnings</span><div class="hint">Barcode and order/title checks look clear.</div>`;
   const draft = getEditorItem(); $("editorStageBadge").textContent = getWorkflowStage(draft); $("editorNextStepBadge").textContent = getNextStep(draft);
   const stamps = [["Created",draft.createdAt],["Received",draft.receivedAt],["Cataloged",draft.catalogedAt],["Spine",draft.spineAt],["Covered",draft.coveredAt],["Bookplate",draft.bookplatePrintedAt],["Done",draft.doneAt],["Slip",draft.lastSlipPrintedAt]].filter(([,v]) => !!v).map(([k,v]) => `${k}:${new Date(v).toLocaleDateString()}`);
   $("editorHistorySummary").textContent = stamps.length ? stamps.join(" • ") : "No timestamps yet.";
@@ -1116,19 +1270,28 @@ function populateReceipt(it){
   const memorial = (item.memorial || "").trim(); $("rMemorial").textContent = memorial; $("rMemorialRow").classList.toggle("hidden", !memorial);
   const notes = (item.notes || "").trim(); $("rNotes").textContent = notes; $("rNotesRow").classList.toggle("hidden", !notes);
   $("rBarcodeText").textContent = item.barcode || "";
-  if(item.barcode){ try{ JsBarcode("#barcodeSvg", item.barcode, { format:"CODE128", width:2.4, height:72, displayValue:false, margin:0, lineColor:"#000" }); }catch{} }
+  if(item.barcode){ try{ JsBarcode("#barcodeSvg", item.barcode, { format:"CODE128", width:2, height:56, displayValue:false, margin:0, lineColor:"#000" }); }catch{} }
   $("rPrintedAt").textContent = item.printedAt || "";
 }
-function syncReceipt(){ populateReceipt(getEditorItem()); syncDuplicateWarnings(); }
-function printSlip(){
-  const draft = getEditorItem(); $("slipPrinted").value = "YES"; $("printedAt").value = nowStamp(); const hadActive = !!activeId; saveItem();
-  const saved = data.items.find(x => x.id === activeId || x.barcode === draft.barcode);
-  if(saved){ saved.slipPrinted = "YES"; saved.printedAt = $("printedAt").value; saved.lastSlipPrintedAt = nowISO(); logActivity(saved, "Slip printed"); saved.updatedAt = nowISO(); populateReceipt(saved); }
-  persist(); document.body.classList.add("print-slip"); window.print(); if(hadActive && $("sessionModeEnabled").value === "1") loadNextActiveItem(activeId);
+function syncReceipt(){ populateReceipt(getEditorItem()); syncDuplicateWarnings(); renderCurrentItemCard(); renderEditorQuickActions(); updateEditorPanels(); }
+function runPrintMode(mode, populateFn, afterFn){
+  if(pendingSlipCleanup){ window.removeEventListener('afterprint', pendingSlipCleanup); pendingSlipCleanup(); }
+  populateFn();
+  const cleanup = () => { document.body.classList.remove(mode); if(afterFn) afterFn(); window.removeEventListener('afterprint', cleanup); if(pendingSlipCleanup === cleanup) pendingSlipCleanup = null; };
+  pendingSlipCleanup = cleanup;
+  window.addEventListener('afterprint', cleanup, { once:true });
+  document.body.classList.add(mode);
+  requestAnimationFrame(() => setTimeout(() => window.print(), 40));
 }
-function printAdHocSlip(it){ const previous = getEditorItem(); populateReceipt(it); document.body.classList.add("print-slip"); window.print(); populateReceipt(previous); }
+function printSlip(){
+  const draft = getEditorItem(); $("slipPrinted").value = "YES"; $("printedAt").value = nowStamp(); const currentId = activeId; saveItem();
+  const saved = data.items.find(x => x.id === (activeId || currentId) || x.barcode === draft.barcode);
+  if(saved){ saved.slipPrinted = "YES"; saved.printedAt = $("printedAt").value; saved.lastSlipPrintedAt = nowISO(); logActivity(saved, "Slip printed"); saved.updatedAt = nowISO(); rememberRecentScan(saved.id); }
+  persist();
+  if(saved){ runPrintMode('print-slip', () => populateReceipt(saved), () => { syncReceipt(); if($("sessionModeEnabled").value === "1") loadNextActiveItem(saved.id); else focusScanInput(); }); }
+}
+function printAdHocSlip(it){ const previous = getEditorItem(); runPrintMode('print-slip', () => populateReceipt(it), () => { populateReceipt(previous); focusScanInput(); }); }
 function loadNextActiveItem(currentId){ const next = getVisibleItems().find(row => row.it.id !== currentId && !isDone(row.it)); if(next) loadIntoEditor(next.it); else clearEditor(); }
-
 function getEditorOrder(){ return { id: activeOrderId || orderUid(), orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim(), orderedOn: $("orderPlaced").value, notes: $("orderNotes").value.trim(), items:[...orderItems], updatedAt:nowISO() }; }
 function loadIntoOrderEditor(order){ activeOrderId = order.id; $("orderNumber").value = order.orderNumber || ""; $("orderVendor").value = order.vendor || ""; $("orderPlaced").value = order.orderedOn || ""; $("orderNotes").value = order.notes || ""; orderItems = Array.isArray(order.items) ? structuredCloneSafe(order.items) : []; renderOrderItems(); }
 function clearOrder(){ activeOrderId = null; ["orderNumber","orderVendor","orderPlaced","orderNotes","orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; orderItems = []; renderOrderItems(); }
@@ -1181,11 +1344,11 @@ function getBookplateState(){ return { template: $("bookplateTemplate").value, l
 function buildBookplateLines(state){ const templateLine = bookplateTemplates[state.template] || "Donated by"; return [templateLine, state.line1, state.line2].filter(line => line.trim().length > 0); }
 function renderBookplateSheet(){ const sheet = $("bookplateSheet"); const state = getBookplateState(); const lines = buildBookplateLines(state); const selectedBorder = (data.bookplateBorders || []).find(border => border.id === state.borderId); sheet.style.setProperty("--plate-padding", `${state.padding}px`); sheet.innerHTML = ""; for(let i = 1; i <= 6; i += 1){ const label = document.createElement("div"); label.className = "bookplateLabel"; const shouldFill = state.fillSheet ? i >= state.startPos : i === state.startPos; if(shouldFill){ if(state.borderOn && selectedBorder){ const img = document.createElement("img"); img.className = "bookplateBorder"; img.alt = "Bookplate border"; img.src = selectedBorder.dataUrl; label.appendChild(img); } const content = document.createElement("div"); content.className = "bookplateContent"; lines.forEach((line, index) => { const div = document.createElement("div"); div.className = `bookplateLine${index === 0 ? ' template' : ''}`; div.textContent = line; content.appendChild(div); }); label.appendChild(content); } else label.classList.add("empty"); sheet.appendChild(label); } }
 function clearBookplateForm(){ $("bookplateTemplate").value = "donated"; $("bookplateLine1").value = ""; $("bookplateLine2").value = ""; $("bookplateFillSheet").checked = true; $("bookplateStartPos").value = "1"; $("bookplateBorderOn").checked = true; $("bookplatePadding").value = "16"; $("bookplatePaddingValue").textContent = "16"; $("bookplateBorderSelect").value = (data.bookplateBorders || [])[0]?.id || ""; updateBookplateBorderPreview(); renderBookplateSheet(); }
-function printBookplates(){ document.body.classList.add("print-bookplates"); window.print(); }
+function printBookplates(){ runPrintMode("print-bookplates", () => renderBookplateSheet(), () => focusScanInput()); }
 function setActiveTab(tab){ activeTab = tab; document.querySelectorAll(".tabButton").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tab)); document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`)); $("slipPreviewPanel").classList.toggle("hidden", tab === "bookplates"); $("bookplatePreviewPanel").classList.toggle("hidden", tab !== "bookplates"); }
-function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); syncDuplicateWarnings(); }
+function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); }
 
-$("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); persist(); } loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); $("title").focus(); });
+$("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); $("title").focus(); });
 ["barcode","title","author","materialType","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone","completionState","exceptionType","exceptionNotes","assignedTo","currentLocation","handoffNotes"].forEach(id => { $(id).addEventListener("input", syncReceipt); $(id).addEventListener("change", syncReceipt); });
 ["search","filterStage","filterSpecialHandling","filterAssignment","filterExceptions","filterAging","filterDoneState","processingView","sessionModeEnabled"].forEach(id => { $(id).addEventListener("input", refreshAll); $(id).addEventListener("change", refreshAll); });
 $("workType").addEventListener("change", toggleWorkTypeFields);
@@ -1198,7 +1361,7 @@ $("borderUpload").addEventListener("change", (event) => { const file = event.tar
 window.addEventListener("afterprint", () => { document.body.classList.remove("print-bookplates", "print-slip"); });
 document.querySelectorAll(".tabButton").forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.tab)));
 $("importFile").addEventListener("change", async (event) => { const file = event.target.files?.[0]; if(!file) return; try{ const raw = await file.text(); const parsed = JSON.parse(raw); pendingImportData = normalizeImport(parsed); $("importPreviewSummary").textContent = `Import preview: ${pendingImportData.items.length} items, ${pendingImportData.orders.length} orders, ${pendingImportData.bookplateBorders.length} borders, schema v${SCHEMA_VERSION}.`; if(!confirm(`Preview loaded. Replace current data with ${pendingImportData.items.length} items and ${pendingImportData.orders.length} orders?`)) return; data = pendingImportData; pendingImportData = null; persist(); clearEditor(); clearOrder(); alert("Import complete."); }catch{ alert("Import failed. Please choose a valid JSON backup file."); } });
-(function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); refreshAll(); clearBookplateForm(); setActiveTab("dashboard"); $("scan").focus(); })();
+(function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); toggleFiltersPanel(true); refreshAll(); clearBookplateForm(); setActiveTab("dashboard"); focusScanInput(); })();
 </script>
 </body>
 </html>
