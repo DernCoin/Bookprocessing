@@ -80,7 +80,7 @@ Changelog - Book Processing Dashboard v2.3
   .queueBoard{ grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
   .dashboardGrid{ grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
   .overviewGrid{ grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr); }
-  .processingWorkbench{ grid-template-columns:minmax(0,1.65fr) minmax(320px,1fr); align-items:start; }
+  .processingWorkbench{ grid-template-columns:minmax(0,1fr); align-items:start; }
 
   input[type="text"], input[type="number"], input[type="date"], textarea, select{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px; font-size:.92rem; color:var(--ink); background:#fff; }
   textarea{ min-height:82px; resize:vertical; }
@@ -136,6 +136,20 @@ Changelog - Book Processing Dashboard v2.3
   .queueTable th:nth-child(5), .queueTable td:nth-child(5){ width:170px; }
   .queueActionStack{ display:grid; gap:6px; }
   .queuePrimaryAction{ display:flex; gap:6px; flex-wrap:wrap; }
+
+  .currentItemActions{ display:flex; flex-wrap:wrap; gap:8px; }
+  .queueSection{ background:linear-gradient(180deg,#fffdf9,#fcfaf6); }
+  .bulkActionsSection.hidden{ display:none; }
+  .modalBackdrop{ position:fixed; inset:0; background:rgba(28,23,15,.42); backdrop-filter:blur(1px); display:none; align-items:center; justify-content:center; padding:22px; z-index:40; }
+  .modalBackdrop.open{ display:flex; }
+  .modalPanel{ width:min(1080px,100%); max-height:min(92vh,980px); background:var(--panel); border:1px solid var(--border); border-radius:22px; box-shadow:0 20px 58px rgba(40,33,20,.28); display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
+  .modalHeader,.modalFooter{ padding:14px 18px; background:var(--panel-soft); border-bottom:1px solid var(--border); }
+  .modalFooter{ border-bottom:none; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .modalHeaderTop{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .modalTitleWrap{ display:grid; gap:4px; }
+  .modalBody{ padding:16px 18px 18px; overflow:auto; display:grid; gap:14px; }
+  .modalActions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .sectionless{ border:none; background:transparent; box-shadow:none; padding:0; margin:0; }
   .filterActions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .filterStatusBar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel-soft); margin-bottom:12px; }
   .filterStatusTitle{ font-weight:800; }
@@ -261,7 +275,7 @@ Changelog - Book Processing Dashboard v2.3
   @media (max-width:1280px){ .app{ grid-template-columns:1fr; } }
   @media (max-width:1200px){ .scanHero,.inlineGrid4,.inlineGrid3{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media (max-width:980px){ .overviewGrid,.processingWorkbench,.scanHero,.inlineGrid4,.inlineGrid3,.inlineGrid2{ grid-template-columns:1fr; } .row{ grid-template-columns:1fr; } }
-  @media (max-width:700px){ .app{ padding:12px; } .bulkToolbar .dangerGroup{ margin-left:0; } }
+  @media (max-width:700px){ .app{ padding:12px; } .bulkToolbar .dangerGroup{ margin-left:0; } .modalBackdrop{ padding:10px; } .modalPanel{ max-height:95vh; } }
 </style>
 </head>
 <body>
@@ -382,7 +396,7 @@ Changelog - Book Processing Dashboard v2.3
             <div class="quickActionGrid" id="editorQuickActions"></div>
           </div>
 
-          <div class="section">
+          <div class="section queueSection">
             <div class="sectionHeader">
               <div class="sectionIntro">
                 <h2>Queue</h2>
@@ -392,7 +406,7 @@ Changelog - Book Processing Dashboard v2.3
             </div>
             <div class="filterToggleRow" style="margin-bottom:10px;">
               <div class="hint">Cleaner filters for common use. Extra details stay out of the way until needed.</div>
-              <button class="secondary smallBtn" id="toggleFiltersBtn" type="button" onclick="toggleFiltersPanel()">Hide filters</button>
+              <button class="secondary smallBtn" id="toggleFiltersBtn" type="button" onclick="toggleFiltersPanel()">Show filters</button>
             </div>
             <div id="processingFiltersPanel">
               <div class="compactFilterGrid">
@@ -431,7 +445,7 @@ Changelog - Book Processing Dashboard v2.3
             </div>
           </div>
 
-          <div class="section tight">
+          <div class="section tight bulkActionsSection hidden" id="bulkActionsSection">
             <div class="sectionHeader">
               <div class="sectionIntro">
                 <h2>Bulk actions</h2>
@@ -448,123 +462,6 @@ Changelog - Book Processing Dashboard v2.3
               <div class="dangerGroup">
                 <button class="danger smallBtn" type="button" onclick="bulkAction('delete')">Delete</button>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="section">
-            <div class="sectionHeader">
-              <div class="sectionIntro">
-                <h2>Item editor</h2>
-                <p class="hint">Common fields stay up front. Special handling, exceptions, and history stay available but out of the way.</p>
-              </div>
-            </div>
-            <div id="duplicateWarning" class="duplicateAlert"></div>
-            <div class="editorSections">
-              <details class="editorSection" open>
-                <summary><span>Basic Info</span><span class="hint">Barcode, title, author, type, and pricing</span></summary>
-                <div class="editorSectionBody">
-                  <div class="row"><label for="barcode">Barcode</label><input id="barcode" class="mono" type="text" placeholder="Scan or type barcode" /></div>
-                  <div class="row"><label for="title">Title</label><input id="title" type="text" placeholder="Title" /></div>
-                  <div class="row"><label for="author">Author</label><input id="author" type="text" placeholder="Author" /></div>
-                  <div class="inlineGrid3">
-                    <div><label for="materialType">Material type</label><select id="materialType"></select></div>
-                    <div><label for="workType">Work type</label><select id="workType"><option value="NEW">New processing</option><option value="FIX">General fixes</option></select></div>
-                    <div><label for="completionState">Completion state</label><select id="completionState"></select></div>
-                  </div>
-                  <div class="inlineGrid2">
-                    <div><label for="paidPrice">Paid $</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-                    <div><label for="retailPrice">Retail $</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-                  </div>
-                </div>
-              </details>
-
-              <details class="editorSection" open>
-                <summary><span>Processing Status</span><span class="hint">Workflow progress and fast-path completion</span></summary>
-                <div class="editorSectionBody">
-                  <div class="inlineGrid4 generalFixHide">
-                    <div><label for="received">Received</label><select id="received"><option>NO</option><option>YES</option></select></div>
-                    <div><label for="cataloged">Cataloged</label><select id="cataloged"><option>NO</option><option>YES</option></select></div>
-                    <div><label for="spine">Spine label</label><select id="spine"><option>NO</option><option>YES</option></select></div>
-                    <div><label for="covered">Covered</label><select id="covered"><option>NO</option><option>YES</option></select></div>
-                  </div>
-                  <div class="inlineGrid4">
-                    <div><label for="minimalCover">Minimal covering</label><div><input id="minimalCover" type="checkbox" /></div></div>
-                    <div><label for="bookplate">Bookplate printed</label><select id="bookplate"><option>NO</option><option>YES</option></select></div>
-                    <div id="fixDetailsRow" class="hidden generalFixOnly"><label for="fixDetails">Fix details</label><input id="fixDetails" type="text" placeholder="Describe required fixes" /></div>
-                    <div id="fixDoneRow" class="hidden generalFixOnly"><label for="fixDone">Fix done</label><div><input id="fixDone" type="checkbox" /></div></div>
-                  </div>
-                  <div class="subtleCard">
-                    <div class="inlineGrid2">
-                      <div>
-                        <h3>Derived status</h3>
-                        <div class="badgeRow"><span id="editorStageBadge" class="pill info"></span><span id="editorNextStepBadge" class="pill warn"></span></div>
-                      </div>
-                      <div>
-                        <h3>Slip tracking</h3>
-                        <div class="inlineGrid2">
-                          <div><label for="slipPrinted">Slip printed</label><input id="slipPrinted" type="text" disabled /></div>
-                          <div><label for="printedAt">Printed for</label><input id="printedAt" type="text" disabled /></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="row" style="margin-top:12px;"><label for="manualDone">Mark done manually</label><div><input id="manualDone" type="checkbox" /></div></div>
-                  </div>
-                </div>
-              </details>
-
-              <details class="editorSection" id="specialHandlingSection">
-                <summary><span>Special Handling</span><span class="hint">Hold, donor, memorial, and work-location details</span></summary>
-                <div class="editorSectionBody">
-                  <div class="inlineGrid3 generalFixHide">
-                    <div><label for="holdName">Hold for</label><input id="holdName" type="text" placeholder="Name or cardholder" /></div>
-                    <div><label for="adoptedAmt">Adopted $</label><input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-                    <div><label for="donated">Donor</label><input id="donated" type="text" placeholder="Donor name" /></div>
-                    <div><label for="memorial">Memorial</label><input id="memorial" type="text" placeholder="In memory/honor of" /></div>
-                  </div>
-                  <div class="inlineGrid3">
-                    <div><label for="assignedTo">Assigned to</label><input id="assignedTo" type="text" placeholder="Staff initials or name" /></div>
-                    <div><label for="currentLocation">Current location</label><input id="currentLocation" type="text" placeholder="Cart, cataloging, repair shelf..." /></div>
-                    <div><label for="itemNotes">Slip / item notes</label><input id="itemNotes" type="text" placeholder="Brief note for slip or handoff" /></div>
-                  </div>
-                </div>
-              </details>
-
-              <details class="editorSection" id="exceptionsSection">
-                <summary><span>Exceptions / Notes</span><span class="hint">Only open when an item needs attention</span></summary>
-                <div class="editorSectionBody">
-                  <div class="inlineGrid3">
-                    <div><label for="exceptionType">Exception type</label><select id="exceptionType"></select></div>
-                    <div class="subtleCard"><h3>Exception visibility</h3><div id="exceptionVisibility" class="hint">No active exception.</div></div>
-                    <div class="subtleCard"><h3>Work type guidance</h3><div id="workTypeHelper" class="hint">Standard new-book flow is active.</div></div>
-                  </div>
-                  <div class="row rowTop"><label for="handoffNotes">Handoff notes</label><textarea id="handoffNotes" placeholder="Notes for the next staff handoff"></textarea></div>
-                  <div class="row rowTop"><label for="exceptionNotes">Exception notes</label><textarea id="exceptionNotes" placeholder="Problem details, follow-up, vendor notes"></textarea></div>
-                </div>
-              </details>
-
-              <details class="editorSection" id="historySection">
-                <summary><span>History</span><span class="hint">Timeline and timestamps</span></summary>
-                <div class="editorSectionBody">
-                  <div>
-                    <h3>History stamps</h3>
-                    <div class="hint mono" id="editorHistorySummary">No timestamps yet.</div>
-                  </div>
-                  <div>
-                    <h3>Activity timeline</h3>
-                    <div id="activityTimeline" class="timeline"></div>
-                  </div>
-                </div>
-              </details>
-            </div>
-            <div class="btnRow">
-              <button type="button" onclick="printSlip()">Print slip</button>
-              <button class="secondary" type="button" onclick="saveItem()">Save item</button>
-            </div>
-            <div class="btnRow">
-              <button class="secondary" type="button" onclick="clearEditor()">Clear</button>
-              <button class="danger" type="button" onclick="deleteItem()">Delete</button>
             </div>
           </div>
 
@@ -690,6 +587,140 @@ Changelog - Book Processing Dashboard v2.3
     </div>
   </div>
 
+
+<div class="modalBackdrop" id="editorModal" aria-hidden="true">
+  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="editorModalTitle" aria-describedby="editorModalMeta">
+    <div class="modalHeader">
+      <div class="modalHeaderTop">
+        <div class="modalTitleWrap">
+          <h2 id="editorModalTitle">Edit item</h2>
+          <div id="editorModalMeta" class="hint mono">No item loaded</div>
+        </div>
+        <button class="secondary smallBtn" type="button" id="closeEditorModalBtn" onclick="attemptCloseEditorModal()" aria-label="Close edit item modal">Close</button>
+      </div>
+    </div>
+    <div class="modalBody">
+          <div class="section sectionless">
+            <div class="sectionHeader">
+              <div class="sectionIntro">
+                <h2>Item editor</h2>
+                <p class="hint">Common fields stay up front. Special handling, exceptions, and history stay available but out of the way.</p>
+              </div>
+            </div>
+            <div id="duplicateWarning" class="duplicateAlert"></div>
+            <div class="editorSections">
+              <details class="editorSection" open>
+                <summary><span>Basic Info</span><span class="hint">Barcode, title, author, type, and pricing</span></summary>
+                <div class="editorSectionBody">
+                  <div class="row"><label for="barcode">Barcode</label><input id="barcode" class="mono" type="text" placeholder="Scan or type barcode" /></div>
+                  <div class="row"><label for="title">Title</label><input id="title" type="text" placeholder="Title" /></div>
+                  <div class="row"><label for="author">Author</label><input id="author" type="text" placeholder="Author" /></div>
+                  <div class="inlineGrid3">
+                    <div><label for="materialType">Material type</label><select id="materialType"></select></div>
+                    <div><label for="workType">Work type</label><select id="workType"><option value="NEW">New processing</option><option value="FIX">General fixes</option></select></div>
+                    <div><label for="completionState">Completion state</label><select id="completionState"></select></div>
+                  </div>
+                  <div class="inlineGrid2">
+                    <div><label for="paidPrice">Paid $</label><input id="paidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                    <div><label for="retailPrice">Retail $</label><input id="retailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="editorSection" open>
+                <summary><span>Processing Status</span><span class="hint">Workflow progress and fast-path completion</span></summary>
+                <div class="editorSectionBody">
+                  <div class="inlineGrid4 generalFixHide">
+                    <div><label for="received">Received</label><select id="received"><option>NO</option><option>YES</option></select></div>
+                    <div><label for="cataloged">Cataloged</label><select id="cataloged"><option>NO</option><option>YES</option></select></div>
+                    <div><label for="spine">Spine label</label><select id="spine"><option>NO</option><option>YES</option></select></div>
+                    <div><label for="covered">Covered</label><select id="covered"><option>NO</option><option>YES</option></select></div>
+                  </div>
+                  <div class="inlineGrid4">
+                    <div><label for="minimalCover">Minimal covering</label><div><input id="minimalCover" type="checkbox" /></div></div>
+                    <div><label for="bookplate">Bookplate printed</label><select id="bookplate"><option>NO</option><option>YES</option></select></div>
+                    <div id="fixDetailsRow" class="hidden generalFixOnly"><label for="fixDetails">Fix details</label><input id="fixDetails" type="text" placeholder="Describe required fixes" /></div>
+                    <div id="fixDoneRow" class="hidden generalFixOnly"><label for="fixDone">Fix done</label><div><input id="fixDone" type="checkbox" /></div></div>
+                  </div>
+                  <div class="subtleCard">
+                    <div class="inlineGrid2">
+                      <div>
+                        <h3>Derived status</h3>
+                        <div class="badgeRow"><span id="editorStageBadge" class="pill info"></span><span id="editorNextStepBadge" class="pill warn"></span></div>
+                      </div>
+                      <div>
+                        <h3>Slip tracking</h3>
+                        <div class="inlineGrid2">
+                          <div><label for="slipPrinted">Slip printed</label><input id="slipPrinted" type="text" disabled /></div>
+                          <div><label for="printedAt">Printed for</label><input id="printedAt" type="text" disabled /></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row" style="margin-top:12px;"><label for="manualDone">Mark done manually</label><div><input id="manualDone" type="checkbox" /></div></div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="editorSection" id="specialHandlingSection">
+                <summary><span>Special Handling</span><span class="hint">Hold, donor, memorial, and work-location details</span></summary>
+                <div class="editorSectionBody">
+                  <div class="inlineGrid3 generalFixHide">
+                    <div><label for="holdName">Hold for</label><input id="holdName" type="text" placeholder="Name or cardholder" /></div>
+                    <div><label for="adoptedAmt">Adopted $</label><input id="adoptedAmt" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+                    <div><label for="donated">Donor</label><input id="donated" type="text" placeholder="Donor name" /></div>
+                    <div><label for="memorial">Memorial</label><input id="memorial" type="text" placeholder="In memory/honor of" /></div>
+                  </div>
+                  <div class="inlineGrid3">
+                    <div><label for="assignedTo">Assigned to</label><input id="assignedTo" type="text" placeholder="Staff initials or name" /></div>
+                    <div><label for="currentLocation">Current location</label><input id="currentLocation" type="text" placeholder="Cart, cataloging, repair shelf..." /></div>
+                    <div><label for="itemNotes">Slip / item notes</label><input id="itemNotes" type="text" placeholder="Brief note for slip or handoff" /></div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="editorSection" id="exceptionsSection">
+                <summary><span>Exceptions / Notes</span><span class="hint">Only open when an item needs attention</span></summary>
+                <div class="editorSectionBody">
+                  <div class="inlineGrid3">
+                    <div><label for="exceptionType">Exception type</label><select id="exceptionType"></select></div>
+                    <div class="subtleCard"><h3>Exception visibility</h3><div id="exceptionVisibility" class="hint">No active exception.</div></div>
+                    <div class="subtleCard"><h3>Work type guidance</h3><div id="workTypeHelper" class="hint">Standard new-book flow is active.</div></div>
+                  </div>
+                  <div class="row rowTop"><label for="handoffNotes">Handoff notes</label><textarea id="handoffNotes" placeholder="Notes for the next staff handoff"></textarea></div>
+                  <div class="row rowTop"><label for="exceptionNotes">Exception notes</label><textarea id="exceptionNotes" placeholder="Problem details, follow-up, vendor notes"></textarea></div>
+                </div>
+              </details>
+
+              <details class="editorSection" id="historySection">
+                <summary><span>History</span><span class="hint">Timeline and timestamps</span></summary>
+                <div class="editorSectionBody">
+                  <div>
+                    <h3>History stamps</h3>
+                    <div class="hint mono" id="editorHistorySummary">No timestamps yet.</div>
+                  </div>
+                  <div>
+                    <h3>Activity timeline</h3>
+                    <div id="activityTimeline" class="timeline"></div>
+                  </div>
+                </div>
+              </details>
+            </div>
+            <div class="btnRow">
+              <button class="secondary" type="button" onclick="clearEditor()">Clear</button>
+              <button class="danger" type="button" onclick="deleteItem()">Delete</button>
+            </div>
+          </div>
+    </div>
+    <div class="modalFooter">
+      <div class="hint">Esc closes the modal. Unsaved changes will be confirmed.</div>
+      <div class="modalActions">
+        <button class="secondary" type="button" onclick="printSlip()">Print slip</button>
+        <button type="button" onclick="saveItem()">Save item</button>
+      </div>
+    </div>
+  </div>
+</div>
+
   <div class="panel printpanel hidden" id="slipPreviewPanel">
     <div class="previewPanelHeader">
       <h2>Slip Preview</h2>
@@ -757,10 +788,12 @@ let pendingImportData = null;
 let activeCardFilter = "";
 let activeTab = "dashboard";
 let recentScannedIds = [];
-let filtersExpanded = true;
+let filtersExpanded = false;
 let pendingSlipCleanup = null;
 let slipPreviewCollapsed = false;
 let ordersView = "current";
+let editorModalOpen = false;
+let editorModalReturnFocus = null;
 
 
 function structuredCloneSafe(value){ return JSON.parse(JSON.stringify(value)); }
@@ -1112,6 +1145,52 @@ function renderDashboardPanels(){
 }
 function rowClasses(it){ const classes = []; if(hasException(it)) classes.push("rowException"); if(isDamagedOnArrival(it)) classes.push("rowDamaged"); if(isSpecial(it)) classes.push("rowSpecial"); if(["7+","14+"].includes(getAgingBucket(it)) && !isDone(it)) classes.push("rowOverdue"); if(isDone(it)) classes.push("rowDone"); return classes.join(" "); }
 function toggleFiltersPanel(force){ filtersExpanded = typeof force === "boolean" ? force : !filtersExpanded; $("processingFiltersPanel").classList.toggle("hidden", !filtersExpanded); $("toggleFiltersBtn").textContent = filtersExpanded ? "Hide filters" : "Show filters"; }
+
+function editorComparable(item){
+  const it = migrateItem(item || emptyItem());
+  return JSON.stringify({
+    barcode:it.barcode||"",title:it.title||"",author:it.author||"",materialType:it.materialType||"Book",workType:it.workType||"NEW",
+    received:it.received||"NO",cataloged:it.cataloged||"NO",spine:it.spine||"NO",covered:it.covered||"NO",minimalCover:!!it.minimalCover,
+    paidPrice:String(it.paidPrice??""),retailPrice:String(it.retailPrice??""),manualDone:!!it.manualDone,fixDetails:it.fixDetails||"",fixDone:!!it.fixDone,
+    holdName:it.holdName||"",adoptedAmt:String(it.adoptedAmt??""),bookplate:it.bookplate||"NO",donated:it.donated||"",memorial:it.memorial||"",notes:it.notes||"",
+    slipPrinted:it.slipPrinted||"NO",printedAt:it.printedAt||"",completionState:it.completionState||"In Progress",exceptionType:normalizeExceptionType(it.exceptionType||""),
+    exceptionNotes:it.exceptionNotes||"",assignedTo:it.assignedTo||"",currentLocation:it.currentLocation||"",handoffNotes:it.handoffNotes||""
+  });
+}
+function hasUnsavedEditorChanges(){
+  const draft = getEditorItem();
+  const baseline = activeId ? (data.items.find(x => x.id === activeId) || emptyItem({id:activeId})) : emptyItem();
+  return editorComparable(draft) !== editorComparable(baseline);
+}
+function updateEditorModalHeader(){
+  const draft = getEditorItem();
+  $("editorModalMeta").textContent = `${draft.title || '(untitled)'} • ${draft.barcode || 'No barcode'}`;
+}
+function openEditorModal(triggerEl){
+  editorModalReturnFocus = triggerEl || document.activeElement;
+  const modal = $("editorModal");
+  editorModalOpen = true;
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+  updateEditorModalHeader();
+  const focusTarget = $("title") || $("barcode");
+  requestAnimationFrame(() => focusTarget?.focus());
+}
+function closeEditorModal(){
+  const modal = $("editorModal");
+  editorModalOpen = false;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden","true");
+  if(editorModalReturnFocus && typeof editorModalReturnFocus.focus === 'function') editorModalReturnFocus.focus();
+  else focusScanInput();
+}
+function attemptCloseEditorModal(){
+  if(!editorModalOpen) return;
+  if(hasUnsavedEditorChanges() && !confirm('You have unsaved changes. Close without saving?')) return;
+  closeEditorModal();
+}
+function openItemEditorFromQueue(id, triggerEl){ loadById(id); openEditorModal(triggerEl); }
+
 function quickActionCatalog(){
   return [
     ["received","Mark Received","Set intake complete and move to cataloging."],
@@ -1152,6 +1231,11 @@ function renderCurrentItemCard(){
       <div class="metaBlock"><span class="label">Material type</span><span class="value">${escapeHTML(item.materialType || 'Book')}</span></div>
       <div class="metaBlock"><span class="label">Current stage</span><span class="value">${escapeHTML(stage)}</span></div>
       <div class="metaBlock"><span class="label">Next step</span><span class="value">${escapeHTML(nextStep)}</span></div>
+    </div>
+    <div class="currentItemActions">
+      <button type="button" onclick="openEditorModal(this)">Edit item</button>
+      <button class="secondary" type="button" onclick="printSlip()">Print slip</button>
+      <button class="secondary" type="button" onclick="saveItem()">Save</button>
     </div>`;
 }
 function renderEditorQuickActions(){
@@ -1177,10 +1261,15 @@ function handleEditorAction(action){
 }
 function updateEditorPanels(){
   const draft = getEditorItem();
+  const sections = document.querySelectorAll('.editorSection');
+  if(sections[0]) sections[0].open = true;
+  if(sections[1]) sections[1].open = true;
   const specialOpen = hasHold(draft) || hasAdopted(draft) || hasDonation(draft) || hasMemorial(draft);
-  const exceptionOpen = hasException(draft) || !!draft.exceptionNotes || !!draft.handoffNotes || !!draft.notes;
+  const exceptionOpen = hasException(draft);
   $("specialHandlingSection").open = specialOpen;
   $("exceptionsSection").open = exceptionOpen;
+  $("historySection").open = false;
+  updateEditorModalHeader();
   const exceptionEl = $("exceptionVisibility");
   if(exceptionEl) exceptionEl.innerHTML = hasException(draft) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(draft.exceptionType))}</span><div class="hint" style="margin-top:6px;">This item should stay visually separated until resolved.</div>` : 'No active exception.';
 }
@@ -1218,7 +1307,7 @@ function renderTable(){
       <td><strong>${escapeHTML(nextStep)}</strong><div class="hint">${hasException(it) ? 'Resolve before advancing' : 'Suggested next staff action'}</div></td>
       <td><div class="tableItemCell"><strong>${escapeHTML(title || '(untitled)')}</strong><div class="tableItemMeta"><span class="hint mono">${escapeHTML(it.barcode || '')}</span><span class="pill soft">${escapeHTML(it.materialType || 'Item')}</span>${it.assignedTo ? `<span class="pill soft">${escapeHTML(it.assignedTo)}</span>` : ''}</div></div></td>
       <td>${flags.length ? `<div class="badgeRow">${flags.join('')}</div>` : '<span class="hint">No flags</span>'}</td>
-      <td><div class="queueActionStack"><div class="queuePrimaryAction">${quickActionButtons(it)}</div><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open editor</button></div></td>`;
+      <td><div class="queueActionStack"><div class="queuePrimaryAction">${quickActionButtons(it)}</div><button class="smallBtn secondary" onclick="openItemEditorFromQueue('${it.id}', this)">Edit</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Load</button></div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1230,7 +1319,7 @@ function quickActionButtons(it){
   else if(getWorkflowStage(it) === "Covering") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','covered')">Covered</button>`);
   else if(getWorkflowStage(it) === "Bookplate") buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','bookplate')">Bookplate</button>`);
   else if(isGeneralFix(it) && !it.fixDone) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','fixDone')">Fix done</button>`);
-  else if(!isDone(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','done')">Ready</button>`);
+  else if(!isDone(it)) buttons.push(`<button class="smallBtn secondary" onclick="quickAction('${it.id}','done')">Mark done</button>`);
   else buttons.push(`<button class="smallBtn ghost" onclick="quickAction('${it.id}','reopen')">Reopen</button>`);
   buttons.push(`<button class="smallBtn secondary" onclick="loadAndPrint('${it.id}')">Slip</button>`);
   return buttons.join('');
@@ -1241,14 +1330,14 @@ function renderQueue(){
     const items = rows.filter(row => row.stage === stage).slice(0,20);
     const col = document.createElement("div"); col.className = "queueColumn"; col.innerHTML = `<h3>${escapeHTML(stage)} <span class="hint">(${items.length})</span></h3>`;
     if(items.length === 0) col.innerHTML += `<div class="emptyState">No items in this stage.</div>`;
-    else items.forEach(({it,score,nextStep}) => { col.innerHTML += `<div class="queueCard ${rowClasses(it)}"><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill soft">P${score}</span><span class="pill info">${escapeHTML(nextStep)}</span></div><div class="actions"><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button><button class="smallBtn secondary" onclick="quickAction('${it.id}','advance')">Advance</button></div></div>`; });
+    else items.forEach(({it,score,nextStep}) => { col.innerHTML += `<div class="queueCard ${rowClasses(it)}"><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill soft">P${score}</span><span class="pill info">${escapeHTML(nextStep)}</span></div><div class="actions"><button class="smallBtn secondary" onclick="openItemEditorFromQueue('${it.id}', this)">Edit</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Load</button><button class="smallBtn secondary" onclick="quickAction('${it.id}','advance')">Advance</button></div></div>`; });
     board.appendChild(col);
   });
   const queueMode = $("processingView").value === "queue";
   $("tableViewWrap").classList.toggle("hidden", queueMode);
   $("queueViewWrap").classList.toggle("hidden", !queueMode);
 }
-function updateSelectedCount(){ $("selectedCount").textContent = `${selectedIds.size} selected`; }
+function updateSelectedCount(){ $("selectedCount").textContent = `${selectedIds.size} selected`; $("bulkActionsSection")?.classList.toggle("hidden", selectedIds.size === 0); }
 function toggleSelect(id, checked){ checked ? selectedIds.add(id) : selectedIds.delete(id); updateSelectedCount(); }
 function getSelectedItems(){ return data.items.filter(it => selectedIds.has(it.id)); }
 function bulkAction(action){
@@ -1421,7 +1510,7 @@ function renderReceivingSession(){
   const order = data.orders.find(x => x.id === orderId); if(!order){ list.innerHTML = `<div class="emptyState">Order not found.</div>`; return; }
   if(orderProgress(order).isArchived){ $("receivingProgress").textContent = "Archived orders are hidden from receiving."; list.innerHTML = `<div class="emptyState">Receiving session only shows current, non-archived orders.</div>`; return; }
   syncProcessingItemsFromOrder(order); const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean).filter(it => !isArchivedItem(it)); const received = linked.filter(it => it.received === "YES").length; $("receivingProgress").textContent = `${received}/${linked.length} received • ${linked.filter(it => isDone(it)).length} complete`; list.innerHTML = "";
-  linked.forEach(it => { list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagDamaged('${it.id}')">Damaged</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Open</button></div></div>`; });
+  linked.forEach(it => { list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagDamaged('${it.id}')">Damaged</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="openItemEditorFromQueue('${it.id}', this)">Edit</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Load</button></div></div>`; });
   if(linked.length === 0) list.innerHTML = `<div class="emptyState">This order has no items.</div>`;
 }
 function flagMissing(id){ const item = data.items.find(x => x.id === id); if(!item) return; item.exceptionType = normalizeExceptionType("Missing from shipment"); item.exceptionNotes = item.exceptionNotes || "Flagged during receiving session."; logActivity(item, "Exception added", item.exceptionType); persist(); }
@@ -1431,7 +1520,7 @@ function receiveAllItemsForOrder(orderId){ const order = data.orders.find(x => x
 function receiveAllItemsForSelectedOrder(){ const id = $("receivingOrderSelect").value; if(id) receiveAllItemsForOrder(id); }
 function printOrderItemSlip(orderItemId, fallbackIndex = 0){ const orderItem = orderItems.find(item => item.id === orderItemId); if(!orderItem) return; const orderNumber = $("orderNumber").value.trim(); const vendor = $("orderVendor").value.trim(); const barcode = orderItem.barcode || (orderNumber ? `ORDER-${orderNumber}-${fallbackIndex + 1}` : ""); const temp = migrateItem({ ...emptyItem({ id:orderItem.id }), ...orderItem, barcode, orderNumber: orderItem.orderNumber || orderNumber, vendor: orderItem.vendor || vendor, workType:"NEW", slipPrinted:"YES", printedAt:nowStamp(), lastSlipPrintedAt:nowISO() }); printAdHocSlip(temp); }
 
-function loadById(id){ const it = data.items.find(x => x.id === id); if(!it) return; loadIntoEditor(it); setActiveTab("processing"); $("title").focus(); }
+function loadById(id){ const it = data.items.find(x => x.id === id); if(!it) return; loadIntoEditor(it); setActiveTab("processing"); focusScanInput(); }
 function loadAndPrint(id){ loadById(id); printSlip(); }
 function exportAllData(){ downloadJSON({ exportedAt: nowISO(), schemaVersion:SCHEMA_VERSION, data }, `book-processing-backup-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`); }
 function getLastExportStamp(){ return localStorage.getItem(EXPORT_TIMESTAMP_KEY) || ""; }
@@ -1458,7 +1547,7 @@ function setActiveTab(tab){
 }
 function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); updateSlipPreviewVisibility(); }
 
-$("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); $("title").focus(); });
+$("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); focusScanInput(); });
 ["barcode","title","author","materialType","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone","completionState","exceptionType","exceptionNotes","assignedTo","currentLocation","handoffNotes"].forEach(id => { $(id).addEventListener("input", syncReceipt); $(id).addEventListener("change", syncReceipt); });
 ["search","filterStage","filterSpecialHandling","filterAssignment","filterExceptions","filterAging","filterDoneState","processingView","sessionModeEnabled"].forEach(id => { $(id).addEventListener("input", refreshAll); $(id).addEventListener("change", refreshAll); });
 $("workType").addEventListener("change", toggleWorkTypeFields);
@@ -1470,8 +1559,28 @@ $("bookplateBorderSelect").addEventListener("change", updateBookplateBorderPrevi
 $("borderUpload").addEventListener("change", (event) => { const file = event.target.files?.[0]; if(!file) return; const reader = new FileReader(); reader.onload = () => { data.bookplateBorders ||= []; data.bookplateBorders.push({ id:uid(), name:file.name, dataUrl:reader.result }); persist(); }; reader.readAsDataURL(file); event.target.value = ""; });
 window.addEventListener("afterprint", () => { document.body.classList.remove("print-bookplates", "print-slip"); });
 document.querySelectorAll(".tabButton").forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.tab)));
+
+$("editorModal").addEventListener("mousedown", (event) => {
+  if(event.target === $("editorModal")) attemptCloseEditorModal();
+});
+document.addEventListener("keydown", (event) => {
+  if(!editorModalOpen) return;
+  if(event.key === "Escape"){
+    event.preventDefault();
+    attemptCloseEditorModal();
+    return;
+  }
+  if(event.key === "Tab"){
+    const focusable = [...$("editorModal").querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && el.offsetParent !== null);
+    if(!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if(event.shiftKey && document.activeElement === first){ event.preventDefault(); last.focus(); }
+    else if(!event.shiftKey && document.activeElement === last){ event.preventDefault(); first.focus(); }
+  }
+});
+
 $("importFile").addEventListener("change", async (event) => { const file = event.target.files?.[0]; if(!file) return; try{ const raw = await file.text(); const parsed = JSON.parse(raw); pendingImportData = normalizeImport(parsed); $("importPreviewSummary").textContent = `Import preview: ${pendingImportData.items.length} items, ${pendingImportData.orders.length} orders, ${pendingImportData.bookplateBorders.length} borders, schema v${SCHEMA_VERSION}.`; if(!confirm(`Preview loaded. Replace current data with ${pendingImportData.items.length} items and ${pendingImportData.orders.length} orders?`)) return; data = pendingImportData; pendingImportData = null; persist(); clearEditor(); clearOrder(); alert("Import complete."); }catch{ alert("Import failed. Please choose a valid JSON backup file."); } });
-(function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); toggleFiltersPanel(true); refreshAll(); clearBookplateForm(); updateSlipPreviewVisibility(); setActiveTab("dashboard"); focusScanInput(); })();
+(function init(){ syncAllOrdersToItems(); renderFilterOptions(); clearEditor(); clearOrder(); $("filterDoneState").value = "open"; toggleWorkTypeFields(); toggleFiltersPanel(false); if(window.innerWidth < 1280) toggleSlipPreview(true); refreshAll(); clearBookplateForm(); updateSlipPreviewVisibility(); setActiveTab("dashboard"); focusScanInput(); })();
 </script>
 </body>
 </html>
