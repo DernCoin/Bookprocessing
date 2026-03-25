@@ -223,6 +223,22 @@ Changelog - Book Processing Dashboard v2.3
   .receivingItem{ display:grid; grid-template-columns:1fr auto; gap:8px; padding:10px; border-bottom:1px solid #ece7dd; }
   .receivingItem:last-child{ border-bottom:none; }
   .emptyState{ padding:22px; text-align:center; color:var(--muted); border:1px dashed var(--border-strong); border-radius:14px; background:var(--panel-soft); }
+  .ordersHero{ display:grid; gap:12px; }
+  .ordersHeroTop{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .ordersHeroActions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .ordersSummaryCards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .ordersMiniCard{ border:1px solid var(--border); border-radius:12px; padding:10px; background:var(--panel-soft); display:grid; gap:4px; }
+  .ordersMiniCard .value{ font-size:1.25rem; font-weight:900; }
+  .progressStack{ display:grid; gap:8px; margin-top:6px; }
+  .progressRow{ display:grid; gap:4px; }
+  .progressLabel{ display:flex; justify-content:space-between; gap:8px; font-size:.76rem; font-weight:800; color:var(--ink-soft); }
+  .progressTrack{ height:8px; border-radius:999px; background:#e8e2d5; overflow:hidden; }
+  .progressFill{ height:100%; background:linear-gradient(90deg,var(--accent),#7f8a83); }
+  .progressFill.complete{ background:linear-gradient(90deg,var(--good),#75a27a); }
+  .progressFill.warn{ background:linear-gradient(90deg,var(--warn),#c49c4c); }
+  .ordersModalLayout{ display:grid; gap:14px; }
+  .orderItemInputGrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+  .orderItemsHeader{ display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap; }
 
   .receiptWrap{ display:grid; justify-content:center; }
   .receipt{ width:var(--paper); background:#fff; border:2px solid #000; border-radius:8px; padding:10px 10px 8px; font-family:"Courier New", Courier, monospace; font-size:14px; font-weight:800; line-height:1.28; color:#000; image-rendering:pixelated; -webkit-font-smoothing:none; }
@@ -478,42 +494,30 @@ Changelog - Book Processing Dashboard v2.3
       </div>
     </div>
     <div id="tab-orders" class="tabPanel">
-      <!-- Structural cleanup: receiving remains on Orders to keep Processing focused. -->
       <div class="section">
-        <h2>Book orders</h2>
-        <div class="inlineGrid4">
-          <div><label for="orderNumber">Order #</label><input id="orderNumber" type="text" placeholder="Order number" /></div>
-          <div><label for="orderVendor">Vendor</label><input id="orderVendor" type="text" placeholder="Vendor/source" /></div>
-          <div><label for="orderPlaced">Ordered on</label><input id="orderPlaced" type="date" /></div>
-          <div><label for="orderNotes">Notes</label><input id="orderNotes" type="text" placeholder="Rush, funding source, etc." /></div>
+        <div class="ordersHero">
+          <div class="ordersHeroTop">
+            <div class="sectionIntro">
+              <h2>Orders workspace</h2>
+              <p class="hint">Manage order setup in a focused modal and keep receiving + oversight in one calm view.</p>
+              <div id="loadedOrderSummary" class="hint mono">No order loaded.</div>
+              <div id="loadedOrderProgress" class="progressStack hidden"></div>
+            </div>
+            <div class="ordersHeroActions">
+              <button type="button" onclick="openOrderModal('new')">New order</button>
+              <button id="editOrderBtn" class="secondary" type="button" onclick="openOrderModal('edit')" disabled>Edit loaded order</button>
+              <button id="clearLoadedOrderBtn" class="ghost" type="button" onclick="clearOrder()">Clear loaded</button>
+            </div>
+          </div>
+          <div id="ordersOverviewCards" class="ordersSummaryCards"></div>
         </div>
-        <h3 style="margin:12px 0 8px;">Order items</h3>
-        <div class="inlineGrid4">
-          <div><label for="orderItemTitle">Item title</label><input id="orderItemTitle" type="text" placeholder="Item title" /></div>
-          <div><label for="orderItemAuthor">Item author</label><input id="orderItemAuthor" type="text" placeholder="Item author" /></div>
-          <div><label for="orderItemBarcode">Item barcode</label><input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" /></div>
-          <div><label for="orderItemMaterialType">Material type</label><select id="orderItemMaterialType"></select></div>
-          <div><label for="orderItemDonation">Donation</label><input id="orderItemDonation" type="text" placeholder="Donor name" /></div>
-          <div><label for="orderItemMemorial">Memorial</label><input id="orderItemMemorial" type="text" placeholder="Memorial text" /></div>
-          <div><label for="orderItemNotes">Item notes</label><input id="orderItemNotes" type="text" placeholder="Notes to carry into processing" /></div>
-          <div><label for="orderItemPaidPrice">Paid price</label><input id="orderItemPaidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-          <div><label for="orderItemRetailPrice">Retail price</label><input id="orderItemRetailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
-        </div>
-        <div class="btnRow"><button class="secondary" type="button" onclick="addOrderItem()">Add item</button><button class="secondary" type="button" onclick="saveOrder()">Save order</button></div>
-        <div class="tableWrap" style="margin-top:10px;">
-          <table>
-            <thead><tr><th>Item</th><th>Author</th><th>Barcode</th><th>Type</th><th>Donation</th><th>Memorial</th><th>Paid</th><th>Retail</th><th>Notes</th><th>Actions</th></tr></thead>
-            <tbody id="orderItemsTable"></tbody>
-          </table>
-        </div>
-        <div class="btnRow"><button class="secondary" type="button" onclick="clearOrder()">Clear</button><button class="danger" type="button" onclick="deleteOrder()">Delete</button></div>
       </div>
 
       <div class="section">
         <div class="sectionHeader">
           <div class="sectionIntro">
-            <h2>Orders workspace</h2>
-            <p class="hint">Switch between current and archived orders without changing the main Book Orders tab.</p>
+            <h2>Order groups</h2>
+            <p class="hint">Switch between current and archived orders without leaving this workspace.</p>
           </div>
           <div class="previewPanelControls">
             <div class="segmentControl" role="tablist" aria-label="Order groups">
@@ -587,6 +591,76 @@ Changelog - Book Processing Dashboard v2.3
     </div>
   </div>
 
+
+<div class="modalBackdrop" id="orderModal" aria-hidden="true">
+  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle" aria-describedby="orderModalMeta">
+    <div class="modalHeader">
+      <div class="modalHeaderTop">
+        <div class="modalTitleWrap">
+          <h2 id="orderModalTitle">New order</h2>
+          <div id="orderModalMeta" class="hint mono">Create an order with item and donation defaults.</div>
+        </div>
+        <button class="secondary smallBtn" type="button" onclick="closeOrderModal()">Close</button>
+      </div>
+    </div>
+    <div class="modalBody">
+      <div class="ordersModalLayout">
+        <div class="section tight">
+          <div class="sectionHeader"><div class="sectionIntro"><h2>Order details</h2></div></div>
+          <div class="inlineGrid4">
+            <div><label for="orderNumber">Order #</label><input id="orderNumber" type="text" placeholder="Order number" /></div>
+            <div><label for="orderVendor">Vendor/source</label><input id="orderVendor" type="text" placeholder="Vendor/source" /></div>
+            <div><label for="orderPlaced">Ordered on</label><input id="orderPlaced" type="date" /></div>
+            <div><label for="orderAcquisitionType">Acquisition type</label><select id="orderAcquisitionType"><option value="Standard purchase">Standard purchase</option><option value="Donation">Donation</option><option value="Memorial donation">Memorial donation</option><option value="Mixed order">Mixed order</option></select></div>
+          </div>
+          <div style="margin-top:10px;"><label for="orderNotes">Notes</label><input id="orderNotes" type="text" placeholder="Rush, funding source, etc." /></div>
+        </div>
+        <div class="section tight">
+          <div class="sectionHeader"><div class="sectionIntro"><h2>Donation / acquisition details</h2><p class="hint">Order-level defaults can flow into each item and still be overridden per item.</p></div></div>
+          <div id="orderDonationFields" class="inlineGrid4 hidden">
+            <div><label for="orderDonorName">Donor name</label><input id="orderDonorName" type="text" placeholder="Donor name" /></div>
+            <div><label for="orderMemorialText">Memorial / honor text</label><input id="orderMemorialText" type="text" placeholder="In memory/honor of" /></div>
+            <div><label for="orderFundingNote">Funding/source note</label><input id="orderFundingNote" type="text" placeholder="Fund or acquisition note" /></div>
+            <div><label for="orderBookplateDefault">Default bookplate behavior</label><select id="orderBookplateDefault"><option value="">No default</option><option value="Apply donor">Apply donor by default</option><option value="Apply memorial">Apply memorial by default</option><option value="Apply both">Apply donor + memorial by default</option></select></div>
+          </div>
+          <div id="orderDonationHint" class="hint">Set acquisition type to Donation or Memorial donation to reveal donor defaults.</div>
+        </div>
+        <div class="section tight">
+          <div class="orderItemsHeader">
+            <div class="sectionIntro"><h2>Order items</h2><p class="hint">Add items in a compact form, then review/edit in the table.</p></div>
+            <div class="badgeRow"><span class="pill info"><span id="orderItemsCount">0</span> items</span></div>
+          </div>
+          <div class="orderItemInputGrid">
+            <div><label for="orderItemTitle">Item title</label><input id="orderItemTitle" type="text" placeholder="Item title" /></div>
+            <div><label for="orderItemAuthor">Item author</label><input id="orderItemAuthor" type="text" placeholder="Item author" /></div>
+            <div><label for="orderItemBarcode">Item barcode</label><input id="orderItemBarcode" class="mono" type="text" placeholder="Optional barcode" /></div>
+            <div><label for="orderItemMaterialType">Material type</label><select id="orderItemMaterialType"></select></div>
+            <div><label for="orderItemDonation">Donor override</label><input id="orderItemDonation" type="text" placeholder="Donor name" /></div>
+            <div><label for="orderItemMemorial">Memorial override</label><input id="orderItemMemorial" type="text" placeholder="Memorial text" /></div>
+            <div><label for="orderItemNotes">Item notes</label><input id="orderItemNotes" type="text" placeholder="Notes to carry into processing" /></div>
+            <div><label for="orderItemPaidPrice">Paid price</label><input id="orderItemPaidPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+            <div><label for="orderItemRetailPrice">Retail price</label><input id="orderItemRetailPrice" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          </div>
+          <div style="margin-top:10px;" class="actions"><button class="secondary smallBtn" type="button" onclick="addOrderItem()">Add item</button><button class="ghost smallBtn" type="button" onclick="clearOrderItemFields()">Clear item fields</button></div>
+          <div class="tableWrap" style="margin-top:10px;">
+            <table>
+              <thead><tr><th>Item</th><th>Author</th><th>Barcode</th><th>Type</th><th>Donation</th><th>Memorial</th><th>Paid</th><th>Retail</th><th>Notes</th><th>Actions</th></tr></thead>
+              <tbody id="orderItemsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modalFooter">
+      <div class="hint">Saving preserves existing sync logic for linked processing items.</div>
+      <div class="modalActions">
+        <button class="secondary" type="button" onclick="clearOrder()">Clear</button>
+        <button class="danger" type="button" onclick="deleteOrder()">Delete</button>
+        <button type="button" onclick="saveOrder()">Save order</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="modalBackdrop" id="editorModal" aria-hidden="true">
   <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="editorModalTitle" aria-describedby="editorModalMeta">
@@ -794,6 +868,8 @@ let slipPreviewCollapsed = false;
 let ordersView = "current";
 let editorModalOpen = false;
 let editorModalReturnFocus = null;
+let orderModalOpen = false;
+let orderModalMode = "new";
 
 
 function structuredCloneSafe(value){ return JSON.parse(JSON.stringify(value)); }
@@ -883,6 +959,11 @@ function migrateOrder(order){
     orderNumber: order.orderNumber || order.title || "",
     vendor: order.vendor || "",
     orderedOn: order.orderedOn || "",
+    acquisitionType: order.acquisitionType || "Standard purchase",
+    donorName: order.donorName || "",
+    memorialText: order.memorialText || "",
+    fundingNote: order.fundingNote || "",
+    defaultBookplateBehavior: order.defaultBookplateBehavior || "",
     notes: order.notes || "",
     updatedAt: order.updatedAt || nowISO(),
     items: Array.isArray(order.items) ? order.items.map(item => ({
@@ -1482,34 +1563,137 @@ function printSlip(){
 }
 function printAdHocSlip(it){ const previous = getEditorItem(); updateSlipPreviewVisibility(); runPrintMode('print-slip', () => populateReceipt(it), () => { populateReceipt(previous); updateSlipPreviewVisibility(); focusScanInput(); }); }
 function loadNextActiveItem(currentId){ const next = getVisibleItems().find(row => row.it.id !== currentId && !isDone(row.it)); if(next) loadIntoEditor(next.it); else clearEditor(); }
-function getEditorOrder(){ return { id: activeOrderId || orderUid(), orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim(), orderedOn: $("orderPlaced").value, notes: $("orderNotes").value.trim(), items:[...orderItems], updatedAt:nowISO() }; }
-function loadIntoOrderEditor(order){ activeOrderId = order.id; $("orderNumber").value = order.orderNumber || ""; $("orderVendor").value = order.vendor || ""; $("orderPlaced").value = order.orderedOn || ""; $("orderNotes").value = order.notes || ""; orderItems = Array.isArray(order.items) ? structuredCloneSafe(order.items) : []; renderOrderItems(); }
-function clearOrder(){ activeOrderId = null; ["orderNumber","orderVendor","orderPlaced","orderNotes","orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; orderItems = []; renderOrderItems(); }
-function addOrderItem(){ const title = $("orderItemTitle").value.trim(); const barcode = $("orderItemBarcode").value.trim(); if(!title && !barcode){ alert("Enter an item title or barcode."); return; } orderItems.push({ id:uid(), title, author:$("orderItemAuthor").value.trim(), barcode, donated:$("orderItemDonation").value.trim(), memorial:$("orderItemMemorial").value.trim(), notes:$("orderItemNotes").value.trim(), paidPrice:$("orderItemPaidPrice").value, retailPrice:$("orderItemRetailPrice").value, materialType:$("orderItemMaterialType").value, orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim() }); clearOrderItemFields(); renderOrderItems(); }
+function getEditorOrder(){ return { id: activeOrderId || orderUid(), orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim(), orderedOn: $("orderPlaced").value, acquisitionType: $("orderAcquisitionType").value || "Standard purchase", donorName: $("orderDonorName").value.trim(), memorialText: $("orderMemorialText").value.trim(), fundingNote: $("orderFundingNote").value.trim(), defaultBookplateBehavior: $("orderBookplateDefault").value || "", notes: $("orderNotes").value.trim(), items:[...orderItems], updatedAt:nowISO() }; }
+function loadIntoOrderEditor(order){
+  const normalized = migrateOrder(order);
+  activeOrderId = normalized.id;
+  $("orderNumber").value = normalized.orderNumber || "";
+  $("orderVendor").value = normalized.vendor || "";
+  $("orderPlaced").value = normalized.orderedOn || "";
+  $("orderNotes").value = normalized.notes || "";
+  $("orderAcquisitionType").value = normalized.acquisitionType || "Standard purchase";
+  $("orderDonorName").value = normalized.donorName || "";
+  $("orderMemorialText").value = normalized.memorialText || "";
+  $("orderFundingNote").value = normalized.fundingNote || "";
+  $("orderBookplateDefault").value = normalized.defaultBookplateBehavior || "";
+  orderItems = Array.isArray(normalized.items) ? structuredCloneSafe(normalized.items) : [];
+  if($("orderModalMeta")) $("orderModalMeta").textContent = `Editing ${normalized.orderNumber || 'order'} • ${normalized.vendor || 'No vendor'}`;
+  updateOrderDonationVisibility();
+  renderOrderItems();
+  renderLoadedOrderSummary();
+}
+function clearOrder(){
+  activeOrderId = null;
+  ["orderNumber","orderVendor","orderPlaced","orderNotes","orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice","orderDonorName","orderMemorialText","orderFundingNote"].forEach(id => $(id).value = "");
+  $("orderItemMaterialType").value = "Book";
+  $("orderAcquisitionType").value = "Standard purchase";
+  $("orderBookplateDefault").value = "";
+  orderItems = [];
+  updateOrderDonationVisibility();
+  renderOrderItems();
+  renderLoadedOrderSummary();
+}
+function addOrderItem(){
+  const title = $("orderItemTitle").value.trim();
+  const barcode = $("orderItemBarcode").value.trim();
+  if(!title && !barcode){ alert("Enter an item title or barcode."); return; }
+  const fallbackDonor = $("orderDonorName").value.trim();
+  const fallbackMemorial = $("orderMemorialText").value.trim();
+  orderItems.push({ id:uid(), title, author:$("orderItemAuthor").value.trim(), barcode, donated:$("orderItemDonation").value.trim() || fallbackDonor, memorial:$("orderItemMemorial").value.trim() || fallbackMemorial, notes:$("orderItemNotes").value.trim(), paidPrice:$("orderItemPaidPrice").value, retailPrice:$("orderItemRetailPrice").value, materialType:$("orderItemMaterialType").value, orderNumber: $("orderNumber").value.trim(), vendor: $("orderVendor").value.trim() });
+  clearOrderItemFields();
+  renderOrderItems();
+}
 function clearOrderItemFields(){ ["orderItemTitle","orderItemAuthor","orderItemBarcode","orderItemDonation","orderItemMemorial","orderItemNotes","orderItemPaidPrice","orderItemRetailPrice"].forEach(id => $(id).value = ""); $("orderItemMaterialType").value = "Book"; }
 function removeOrderItem(id){ orderItems = orderItems.filter(item => item.id !== id); renderOrderItems(); }
-function saveOrder(){ const order = getEditorOrder(); if(!order.orderNumber){ alert("Order # is required."); return; } const index = data.orders.findIndex(x => x.id === order.id); if(index >= 0) data.orders[index] = migrateOrder(order); else data.orders.push(migrateOrder(order)); syncProcessingItemsFromOrder(order); persist(); }
-function deleteOrder(){ if(!activeOrderId){ alert("No order loaded."); return; } if(!confirm("Delete this order?")) return; data.orders = data.orders.filter(x => x.id !== activeOrderId); data.items = data.items.filter(x => x.orderId !== activeOrderId); clearOrder(); persist(); }
-function renderOrderItems(){ const tbody = $("orderItemsTable"); tbody.innerHTML = ""; if(orderItems.length === 0){ tbody.innerHTML = `<tr><td colspan="10"><div class="emptyState">No items in this order yet.</div></td></tr>`; return; } orderItems.forEach((item,index) => { tbody.innerHTML += `<tr><td>${escapeHTML(item.title || '')}</td><td>${escapeHTML(item.author || '')}</td><td class="mono">${escapeHTML(item.barcode || '')}</td><td>${escapeHTML(item.materialType || 'Book')}</td><td>${escapeHTML(item.donated || '')}</td><td>${escapeHTML(item.memorial || '')}</td><td class="mono">${escapeHTML(formatMoney(item.paidPrice))}</td><td class="mono">${escapeHTML(formatMoney(item.retailPrice))}</td><td>${escapeHTML(item.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="printOrderItemSlip('${item.id}', ${index})">Print slip</button><button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button></div></td></tr>`; }); }
+function saveOrder(){ const order = getEditorOrder(); if(!order.orderNumber){ alert("Order # is required."); return; } const index = data.orders.findIndex(x => x.id === order.id); if(index >= 0) data.orders[index] = migrateOrder(order); else data.orders.push(migrateOrder(order)); activeOrderId = order.id; syncProcessingItemsFromOrder(order); persist(); closeOrderModal(); }
+function deleteOrder(){ if(!activeOrderId){ alert("No order loaded."); return; } if(!confirm("Delete this order?")) return; data.orders = data.orders.filter(x => x.id !== activeOrderId); data.items = data.items.filter(x => x.orderId !== activeOrderId); closeOrderModal(); clearOrder(); persist(); }
+function renderOrderItems(){ const tbody = $("orderItemsTable"); $("orderItemsCount").textContent = String(orderItems.length); tbody.innerHTML = ""; if(orderItems.length === 0){ tbody.innerHTML = `<tr><td colspan="10"><div class="emptyState">No items in this order yet.</div></td></tr>`; return; } orderItems.forEach((item,index) => { tbody.innerHTML += `<tr><td>${escapeHTML(item.title || '')}</td><td>${escapeHTML(item.author || '')}</td><td class="mono">${escapeHTML(item.barcode || '')}</td><td>${escapeHTML(item.materialType || 'Book')}</td><td>${escapeHTML(item.donated || '')}</td><td>${escapeHTML(item.memorial || '')}</td><td class="mono">${escapeHTML(formatMoney(item.paidPrice))}</td><td class="mono">${escapeHTML(formatMoney(item.retailPrice))}</td><td>${escapeHTML(item.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="printOrderItemSlip('${item.id}', ${index})">Print slip</button><button class="smallBtn secondary" onclick="removeOrderItem('${item.id}')">Remove</button></div></td></tr>`; }); }
+function updateOrderDonationVisibility(){
+  const acq = $("orderAcquisitionType")?.value || "Standard purchase";
+  const show = acq === "Donation" || acq === "Memorial donation";
+  $("orderDonationFields")?.classList.toggle("hidden", !show);
+  $("orderDonationHint")?.classList.toggle("hidden", show);
+}
+function openOrderModal(mode = "new"){
+  orderModalMode = mode;
+  if(mode === "new") clearOrder();
+  else if(mode === "edit" && activeOrderId){
+    const order = data.orders.find(x => x.id === activeOrderId);
+    if(order) loadIntoOrderEditor(order);
+  }
+  $("orderModalTitle").textContent = mode === "edit" ? "Edit order" : "New order";
+  $("orderModalMeta").textContent = activeOrderId ? `Editing ${$("orderNumber").value || 'order'}` : "Create an order with item and donation defaults.";
+  $("orderModal").classList.add("open");
+  $("orderModal").setAttribute("aria-hidden", "false");
+  orderModalOpen = true;
+}
+function closeOrderModal(){ $("orderModal").classList.remove("open"); $("orderModal").setAttribute("aria-hidden", "true"); orderModalOpen = false; }
+function buildProgressBar(label, current, total, tone=""){
+  const safeTotal = Math.max(0, Number(total) || 0);
+  const safeCurrent = Math.max(0, Math.min(Number(current) || 0, safeTotal || Number(current) || 0));
+  const pct = safeTotal > 0 ? Math.round((safeCurrent / safeTotal) * 100) : 0;
+  return `<div class="progressRow"><div class="progressLabel"><span>${escapeHTML(label)}</span><span class="mono">${safeCurrent} / ${safeTotal}</span></div><div class="progressTrack"><div class="progressFill ${tone}" style="width:${pct}%;"></div></div></div>`;
+}
+function renderLoadedOrderSummary(){
+  const summary = $("loadedOrderSummary");
+  const progressWrap = $("loadedOrderProgress");
+  const editBtn = $("editOrderBtn");
+  if(!activeOrderId){ summary.textContent = "No order loaded."; progressWrap.innerHTML = ""; progressWrap.classList.add("hidden"); editBtn.disabled = true; return; }
+  const order = data.orders.find(x => x.id === activeOrderId);
+  if(!order){ summary.textContent = "Loaded order no longer exists."; progressWrap.innerHTML = ""; progressWrap.classList.add("hidden"); editBtn.disabled = true; return; }
+  const progress = orderProgress(order);
+  const total = progress.activeCount || progress.total;
+  summary.textContent = `${order.orderNumber} • ${order.vendor || "No vendor"} • ${order.acquisitionType || "Standard purchase"}`;
+  progressWrap.innerHTML = buildProgressBar("Received", progress.received, total) + buildProgressBar("Complete", progress.completed, total, "complete");
+  progressWrap.classList.remove("hidden");
+  editBtn.disabled = false;
+}
 function syncProcessingItemsFromOrder(order){
   const ord = migrateOrder(order); const orderItemIds = new Set(ord.items.map(item => item.id)); data.items = data.items.filter(item => item.orderId !== ord.id || isArchivedItem(item) || orderItemIds.has(item.id));
   ord.items.forEach((orderItem,index) => {
     const generatedBarcode = (!orderItem.barcode && ord.orderNumber) ? `ORDER-${ord.orderNumber}-${index + 1}` : ""; if(generatedBarcode) orderItem.barcode = generatedBarcode;
     const existing = data.items.find(item => item.id === orderItem.id); const item = migrateItem(existing || emptyItem({ id: orderItem.id }));
-    item.barcode = orderItem.barcode || item.barcode || generatedBarcode; item.title = orderItem.title || item.title; item.author = orderItem.author || item.author; item.donated = orderItem.donated || item.donated; item.memorial = orderItem.memorial || item.memorial; item.notes = orderItem.notes || item.notes; item.paidPrice = orderItem.paidPrice || item.paidPrice; item.retailPrice = orderItem.retailPrice || item.retailPrice; item.materialType = orderItem.materialType || item.materialType || "Book"; item.orderId = ord.id; item.orderNumber = orderItem.orderNumber || ord.orderNumber; item.vendor = orderItem.vendor || ord.vendor || item.vendor || ""; item.updatedAt = nowISO(); if(!existing) logActivity(item, "Created", `Imported from order ${ord.orderNumber}`);
+    item.barcode = orderItem.barcode || item.barcode || generatedBarcode; item.title = orderItem.title || item.title; item.author = orderItem.author || item.author; item.donated = orderItem.donated || ord.donorName || item.donated; item.memorial = orderItem.memorial || ord.memorialText || item.memorial; item.notes = orderItem.notes || item.notes; item.paidPrice = orderItem.paidPrice || item.paidPrice; item.retailPrice = orderItem.retailPrice || item.retailPrice; item.materialType = orderItem.materialType || item.materialType || "Book"; item.orderId = ord.id; item.orderNumber = orderItem.orderNumber || ord.orderNumber; item.vendor = orderItem.vendor || ord.vendor || item.vendor || ""; item.updatedAt = nowISO(); if(!existing) logActivity(item, "Created", `Imported from order ${ord.orderNumber}`);
     const idx = data.items.findIndex(x => x.id === item.id); if(idx >= 0) data.items[idx] = item; else data.items.push(item);
   });
 }
-function orderProgress(order){ const linked = data.items.filter(item => item.orderId === order.id); const total = order.items?.length || 0; const activeLinked = linked.filter(item => !isArchivedItem(item)); const received = activeLinked.filter(item => item.received === "YES").length; const completed = activeLinked.filter(item => isDone(item)).length; const archived = linked.filter(item => isArchivedItem(item)).length; const allReceived = total > 0 && activeLinked.length > 0 && activeLinked.every(item => item.received === "YES"); const allCompleted = total > 0 && activeLinked.length > 0 && activeLinked.every(item => isDone(item)); const canArchive = total > 0 && activeLinked.length > 0 && allReceived && allCompleted; return { total, received, completed, archived, activeCount: activeLinked.length, canArchive, isArchived: total > 0 && linked.length > 0 && linked.every(item => isArchivedItem(item)) }; }
+function orderProgress(order){ const linked = data.items.filter(item => item.orderId === order.id); const total = order.items?.length || 0; const activeLinked = linked.filter(item => !isArchivedItem(item)); const received = activeLinked.filter(item => item.received === "YES").length; const completed = activeLinked.filter(item => isDone(item)).length; const archived = linked.filter(item => isArchivedItem(item)).length; const exceptions = activeLinked.filter(item => hasException(item)).length; const activeCount = activeLinked.length; const remaining = Math.max(0, activeCount - completed); const allReceived = total > 0 && activeLinked.length > 0 && activeLinked.every(item => item.received === "YES"); const allCompleted = total > 0 && activeLinked.length > 0 && activeLinked.every(item => isDone(item)); const canArchive = total > 0 && activeLinked.length > 0 && allReceived && allCompleted; return { total, received, completed, archived, activeCount, exceptions, remaining, canArchive, isArchived: total > 0 && linked.length > 0 && linked.every(item => isArchivedItem(item)) }; }
 function archiveOrder(orderId){ const order = data.orders.find(x => x.id === orderId); if(!order) return; syncProcessingItemsFromOrder(order); const linked = data.items.filter(item => item.orderId === order.id && !isArchivedItem(item)); if(!linked.length){ alert('This order is already archived or has no active items.'); return; } if(linked.some(item => item.received !== 'YES' || !isDone(item))){ alert('Archive is only available after every active order item is received and completed.'); return; } linked.forEach(item => { item.completionState = 'Archived'; ensureTimestamp(item, 'doneAt'); item.updatedAt = nowISO(); logActivity(item, 'Archived', `Archived with order ${order.orderNumber || ''}`.trim()); }); order.updatedAt = nowISO(); persist(); }
-function renderOrders(){ const tbody = $("ordersTable"); tbody.innerHTML = ""; const groups = getOrderGroups(); const orders = groups[ordersView] || groups.current; const currentCount = groups.current.length; const archivedCount = groups.archived.length; const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0); $("ordersSummary").textContent = `Current orders: ${currentCount} • Archived orders: ${archivedCount} • Showing ${ordersView === 'archived' ? 'archived' : 'current'} items: ${itemCount}`; $("ordersCurrentBtn")?.classList.toggle("active", ordersView === "current"); $("ordersArchivedBtn")?.classList.toggle("active", ordersView === "archived"); if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="7"><div class="emptyState">No ${ordersView} orders saved yet.</div></td></tr>`; return; } orders.forEach(order => { const progress = orderProgress(order); const status = progress.isArchived ? 'Archived' : progress.canArchive ? 'Ready to archive' : 'Active'; const canReceive = !progress.isArchived; tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}</td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td><div class="badgeRow"><span class="pill ${progress.isArchived ? 'done' : progress.canArchive ? 'warn' : 'info'}">${escapeHTML(status)}</span>${progress.archived ? `<span class="pill soft">${progress.archived} archived</span>` : ''}</div></td><td class="mono">${progress.received}/${progress.activeCount || progress.total} received • ${progress.completed}/${progress.activeCount || progress.total} complete</td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary ${canReceive ? '' : 'ghost'}" ${canReceive ? '' : 'disabled'} onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button><button class="smallBtn ${progress.canArchive ? '' : 'ghost'}" ${progress.canArchive ? '' : 'disabled'} onclick="archiveOrder('${order.id}')">Archive order</button></div></td></tr>`; }); }
-function loadOrder(id){ const order = data.orders.find(x => x.id === id); if(order){ loadIntoOrderEditor(order); setOrdersView(orderProgress(order).isArchived ? 'archived' : 'current'); } const receiving = $("receivingOrderSelect"); if(receiving && [...receiving.options].some(option => option.value === id)) receiving.value = id; renderReceivingSession(); }
+function renderOrders(){
+  const tbody = $("ordersTable"); tbody.innerHTML = "";
+  const groups = getOrderGroups();
+  const orders = groups[ordersView] || groups.current;
+  const currentCount = groups.current.length;
+  const archivedCount = groups.archived.length;
+  const itemCount = orders.reduce((sum, order) => sum + (order.items?.length || 0), 0);
+  $("ordersSummary").textContent = `Current orders: ${currentCount} • Archived orders: ${archivedCount} • Showing ${ordersView === 'archived' ? 'archived' : 'current'} items: ${itemCount}`;
+  $("ordersCurrentBtn")?.classList.toggle("active", ordersView === "current");
+  $("ordersArchivedBtn")?.classList.toggle("active", ordersView === "archived");
+  const currentProgress = groups.current.map(orderProgress);
+  const cards = [
+    { label:"Active orders", value: currentCount },
+    { label:"Ready to archive", value: currentProgress.filter(p => p.canArchive).length },
+    { label:"Orders w/ exceptions", value: currentProgress.filter(p => p.exceptions > 0).length },
+    { label:"Donation orders", value: groups.current.filter(o => ["Donation","Memorial donation","Mixed order"].includes(o.acquisitionType || "")).length },
+    { label:"Awaiting receipt", value: currentProgress.filter(p => p.received === 0 && (p.activeCount || p.total) > 0).length }
+  ];
+  $("ordersOverviewCards").innerHTML = cards.map(card => `<div class="ordersMiniCard"><div class="hint">${escapeHTML(card.label)}</div><div class="value mono">${card.value}</div></div>`).join("");
+  if(orders.length === 0){ tbody.innerHTML = `<tr><td colspan="7"><div class="emptyState">No ${ordersView} orders saved yet.</div></td></tr>`; return; }
+  orders.forEach(order => {
+    const progress = orderProgress(order);
+    const status = progress.isArchived ? 'Archived' : progress.canArchive ? 'Ready to archive' : 'Active';
+    const canReceive = !progress.isArchived;
+    const total = progress.activeCount || progress.total;
+    tbody.innerHTML += `<tr><td>${escapeHTML(order.orderNumber || '')}</td><td>${escapeHTML(order.vendor || '')}<div class="hint">${escapeHTML(order.acquisitionType || "Standard purchase")}</div></td><td class="mono">${escapeHTML(order.orderedOn || '')}</td><td><div class="badgeRow"><span class="pill ${progress.isArchived ? 'done' : progress.canArchive ? 'warn' : 'info'}">${escapeHTML(status)}</span>${progress.exceptions ? `<span class="pill exception">${progress.exceptions} exceptions</span>` : ''}${progress.archived ? `<span class="pill soft">${progress.archived} archived</span>` : ''}</div></td><td><div class="progressStack">${buildProgressBar("Received", progress.received, total)}${buildProgressBar("Complete", progress.completed, total, "complete")}${buildProgressBar("Remaining", progress.remaining, total, "warn")}</div></td><td>${escapeHTML(order.notes || '')}</td><td><div class="actions"><button class="smallBtn secondary" onclick="loadOrder('${order.id}')">Load</button><button class="smallBtn secondary" onclick="openOrderModal('edit');loadOrder('${order.id}')">Edit</button><button class="smallBtn secondary ${canReceive ? '' : 'ghost'}" ${canReceive ? '' : 'disabled'} onclick="receiveAllItemsForOrder('${order.id}')">Receive all items</button><button class="smallBtn ${progress.canArchive ? '' : 'ghost'}" ${progress.canArchive ? '' : 'disabled'} onclick="archiveOrder('${order.id}')">Archive order</button></div></td></tr>`;
+  });
+}
+function loadOrder(id){ const order = data.orders.find(x => x.id === id); if(order){ loadIntoOrderEditor(order); setOrdersView(orderProgress(order).isArchived ? 'archived' : 'current'); } const receiving = $("receivingOrderSelect"); if(receiving && [...receiving.options].some(option => option.value === id)) receiving.value = id; renderLoadedOrderSummary(); renderReceivingSession(); }
 function renderReceivingSession(){
   const orderId = $("receivingOrderSelect").value; const list = $("receivingList");
-  if(!orderId){ $("receivingProgress").textContent = "No order selected."; list.innerHTML = `<div class="emptyState">Choose an order to start receiving.</div>`; return; }
+  if(!orderId){ $("receivingProgress").innerHTML = "No order selected."; list.innerHTML = `<div class="emptyState">Choose an order to start receiving.</div>`; return; }
   const order = data.orders.find(x => x.id === orderId); if(!order){ list.innerHTML = `<div class="emptyState">Order not found.</div>`; return; }
-  if(orderProgress(order).isArchived){ $("receivingProgress").textContent = "Archived orders are hidden from receiving."; list.innerHTML = `<div class="emptyState">Receiving session only shows current, non-archived orders.</div>`; return; }
-  syncProcessingItemsFromOrder(order); const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean).filter(it => !isArchivedItem(it)); const received = linked.filter(it => it.received === "YES").length; $("receivingProgress").textContent = `${received}/${linked.length} received • ${linked.filter(it => isDone(it)).length} complete`; list.innerHTML = "";
+  if(orderProgress(order).isArchived){ $("receivingProgress").innerHTML = "Archived orders are hidden from receiving."; list.innerHTML = `<div class="emptyState">Receiving session only shows current, non-archived orders.</div>`; return; }
+  syncProcessingItemsFromOrder(order); const linked = order.items.map(item => data.items.find(it => it.id === item.id)).filter(Boolean).filter(it => !isArchivedItem(it)); const received = linked.filter(it => it.received === "YES").length; const complete = linked.filter(it => isDone(it)).length; $("receivingProgress").innerHTML = `<div class="progressStack">${buildProgressBar("Received", received, linked.length)}${buildProgressBar("Complete", complete, linked.length, "complete")}</div>`; list.innerHTML = "";
   linked.forEach(it => { list.innerHTML += `<div class="receivingItem"><div><strong>${escapeHTML(it.title || it.barcode || '(untitled)')}</strong><div class="hint mono">${escapeHTML(it.barcode || '')}</div><div class="badgeRow"><span class="pill info">${escapeHTML(getWorkflowStage(it))}</span>${hasException(it) ? `<span class="pill exception">${escapeHTML(normalizeExceptionType(it.exceptionType))}</span>` : ''}</div></div><div class="actions"><button class="smallBtn secondary" onclick="quickAction('${it.id}','received')">Receive</button><button class="smallBtn secondary" onclick="flagMissing('${it.id}')">Missing</button><button class="smallBtn secondary" onclick="flagDamaged('${it.id}')">Damaged</button><button class="smallBtn secondary" onclick="flagExtra('${order.id}','${it.id}')">Extra</button><button class="smallBtn secondary" onclick="openItemEditorFromQueue('${it.id}', this)">Edit</button><button class="smallBtn secondary" onclick="loadById('${it.id}')">Load</button></div></div>`; });
   if(linked.length === 0) list.innerHTML = `<div class="emptyState">This order has no items.</div>`;
 }
@@ -1545,7 +1729,7 @@ function setActiveTab(tab){
   updateSlipPreviewVisibility();
   $("bookplatePreviewPanel").classList.toggle("hidden", tab !== "bookplates");
 }
-function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); updateSlipPreviewVisibility(); }
+function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderLoadedOrderSummary(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); updateSlipPreviewVisibility(); }
 
 $("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); focusScanInput(); });
 ["barcode","title","author","materialType","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone","completionState","exceptionType","exceptionNotes","assignedTo","currentLocation","handoffNotes"].forEach(id => { $(id).addEventListener("input", syncReceipt); $(id).addEventListener("change", syncReceipt); });
@@ -1564,6 +1748,11 @@ $("editorModal").addEventListener("mousedown", (event) => {
   if(event.target === $("editorModal")) attemptCloseEditorModal();
 });
 document.addEventListener("keydown", (event) => {
+  if(orderModalOpen && event.key === "Escape"){
+    event.preventDefault();
+    closeOrderModal();
+    return;
+  }
   if(!editorModalOpen) return;
   if(event.key === "Escape"){
     event.preventDefault();
@@ -1577,6 +1766,11 @@ document.addEventListener("keydown", (event) => {
     if(event.shiftKey && document.activeElement === first){ event.preventDefault(); last.focus(); }
     else if(!event.shiftKey && document.activeElement === last){ event.preventDefault(); first.focus(); }
   }
+});
+
+$("orderAcquisitionType").addEventListener("change", updateOrderDonationVisibility);
+$("orderModal").addEventListener("mousedown", (event) => {
+  if(event.target === $("orderModal")) closeOrderModal();
 });
 
 $("importFile").addEventListener("change", async (event) => { const file = event.target.files?.[0]; if(!file) return; try{ const raw = await file.text(); const parsed = JSON.parse(raw); pendingImportData = normalizeImport(parsed); $("importPreviewSummary").textContent = `Import preview: ${pendingImportData.items.length} items, ${pendingImportData.orders.length} orders, ${pendingImportData.bookplateBorders.length} borders, schema v${SCHEMA_VERSION}.`; if(!confirm(`Preview loaded. Replace current data with ${pendingImportData.items.length} items and ${pendingImportData.orders.length} orders?`)) return; data = pendingImportData; pendingImportData = null; persist(); clearEditor(); clearOrder(); alert("Import complete."); }catch{ alert("Import failed. Please choose a valid JSON backup file."); } });
