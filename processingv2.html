@@ -116,6 +116,16 @@ Changelog - Book Processing Dashboard v2.3
   .actionBtn{ min-height:58px; text-align:left; display:grid; gap:4px; align-content:center; }
   .actionBtn span{ display:block; font-size:.73rem; opacity:.88; font-weight:700; }
   .fastPathCard,.recentScanCard{ border:1px solid var(--border); border-radius:16px; background:var(--panel-soft); padding:14px; display:grid; gap:12px; }
+  .flowPanel{ max-width:760px; margin:0 auto; display:grid; gap:14px; }
+  .flowScanInput{ font-size:1.4rem !important; font-weight:800; padding:18px 16px !important; text-align:center; }
+  .flowFeedback{ border:1px solid var(--border); border-radius:16px; padding:16px; background:#fff; display:grid; gap:8px; min-height:132px; }
+  .flowFeedback.success{ border-color:var(--good); background:var(--good-soft); }
+  .flowFeedback.warn{ border-color:var(--warn); background:var(--warn-soft); }
+  .flowFeedback.error{ border-color:var(--danger); background:var(--danger-soft); }
+  .flowFeedbackTitle{ font-size:1.15rem; font-weight:900; }
+  .flowModeBar{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; }
+  .flowHistory{ display:grid; gap:8px; max-height:280px; overflow:auto; }
+  .flowHistoryItem{ border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#fff; display:grid; gap:4px; }
   .recentList{ display:grid; gap:8px; max-height:290px; overflow:auto; }
   .recentItem{ display:grid; gap:6px; padding:10px 12px; border-radius:12px; border:1px solid var(--border); background:#fff; }
   .recentItemTop{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
@@ -306,6 +316,7 @@ Changelog - Book Processing Dashboard v2.3
       <div class="tabs" role="tablist" aria-label="Dashboard sections">
         <button class="tabButton active" type="button" data-tab="dashboard">Dashboard</button>
         <button class="tabButton" type="button" data-tab="processing">Processing</button>
+        <button class="tabButton" type="button" data-tab="scanmode">Scan Mode</button>
         <button class="tabButton" type="button" data-tab="orders">Book Orders</button>
         <button class="tabButton" type="button" data-tab="bookplates">Bookplates</button>
         <button class="tabButton" type="button" data-tab="settings">Settings</button>
@@ -490,6 +501,39 @@ Changelog - Book Processing Dashboard v2.3
             </div>
             <div id="recentScansList" class="recentList"></div>
           </div>
+        </div>
+      </div>
+    </div>
+    <div id="tab-scanmode" class="tabPanel">
+      <div class="section flowPanel">
+        <div class="sectionHeader">
+          <div class="sectionIntro">
+            <h2>Scan mode</h2>
+            <p class="hint">Minimal flow screen: scan ISBN/barcode, auto-advance by mode, and keep moving.</p>
+          </div>
+        </div>
+        <div class="flowModeBar">
+          <div>
+            <label for="flowModeSelect">Current mode</label>
+            <select id="flowModeSelect">
+              <option value="receiving">Receiving</option>
+              <option value="cataloging">Cataloging</option>
+              <option value="finishing">Finishing</option>
+            </select>
+          </div>
+          <button class="secondary" type="button" id="flowUndoBtn" onclick="undoLastFlowScan()" disabled>Undo last scan</button>
+        </div>
+        <div>
+          <label for="flowScanInput">Scan barcode / ISBN</label>
+          <input id="flowScanInput" class="mono flowScanInput" type="text" placeholder="Scan and press Enter" />
+        </div>
+        <div id="flowFeedback" class="flowFeedback">
+          <div class="flowFeedbackTitle">Ready to scan</div>
+          <div class="hint">Mode: Receiving. Scanner focus stays here.</div>
+        </div>
+        <div>
+          <h3>Recent activity</h3>
+          <div id="flowHistory" class="flowHistory"></div>
         </div>
       </div>
     </div>
@@ -805,22 +849,16 @@ Changelog - Book Processing Dashboard v2.3
     <div class="receiptWrap">
       <div class="receipt" id="receipt">
         <div id="rSpecialTop" class="r-special hidden">⚠ SPECIAL HANDLING</div>
-        <div class="r-title">PROCESSING STATUS</div>
+        <div class="r-title">PROCESSING SLIP</div>
         <div class="r-rule"></div>
         <div id="rTitleBlock" class="r-block hidden"></div>
         <div class="r-line"><div class="r-left r-sub">Work type</div><div class="r-right" id="rWorkType"></div></div>
-        <div class="r-line"><div class="r-left r-sub">Received</div><div class="r-right" id="rReceived"></div></div>
-        <div class="r-line"><div class="r-left r-sub">Cataloged</div><div class="r-right" id="rCataloged"></div></div>
-        <div class="r-line"><div class="r-left r-sub">Spine label</div><div class="r-right" id="rSpine"></div></div>
-        <div class="r-line"><div class="r-left r-sub">Covered</div><div class="r-right" id="rCovered"></div></div>
-        <div class="r-line"><div class="r-left r-sub">Minimal cover</div><div class="r-right" id="rMinimalCover"></div></div>
         <div class="r-line"><div class="r-left r-sub">Paid price</div><div class="r-right" id="rPaidPrice"></div></div>
         <div class="r-line"><div class="r-left r-sub">Retail price</div><div class="r-right" id="rRetailPrice"></div></div>
         <div id="rExceptionRow" class="r-line hidden"><div class="r-left r-sub">Exception</div><div class="r-right" id="rExceptionType"></div></div>
         <div class="r-rule"></div>
         <div id="rHoldRow" class="r-line hidden"><div class="r-left r-sub">HOLD</div><div class="r-right" id="rHoldName"></div></div>
         <div id="rAdoptedRow" class="r-line hidden"><div class="r-left r-sub">ADOPTED</div><div class="r-right" id="rAdoptedAmt"></div></div>
-        <div id="rBookplateRow" class="r-line hidden"><div class="r-left r-sub">BOOKPLATE</div><div class="r-right" id="rBookplate"></div></div>
         <div id="rDonatedRow" class="r-line hidden"><div class="r-left r-sub">DONATION</div><div class="r-right" id="rDonatedName"></div></div>
         <div id="rMemorialRow" class="r-line hidden"><div class="r-left r-sub">MEMORIAL</div><div class="r-right" id="rMemorial"></div></div>
         <div id="rOrderNumberRow" class="r-line hidden"><div class="r-left r-sub">ORDER #</div><div class="r-right" id="rOrderNumber"></div></div>
@@ -870,6 +908,8 @@ let editorModalOpen = false;
 let editorModalReturnFocus = null;
 let orderModalOpen = false;
 let orderModalMode = "new";
+let flowHistory = [];
+let lastFlowUndo = null;
 
 
 function structuredCloneSafe(value){ return JSON.parse(JSON.stringify(value)); }
@@ -884,7 +924,92 @@ function orderUid(){ return "order_" + Math.random().toString(16).slice(2) + Dat
 function escapeHTML(str){ return String(str ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
 function safeText(value, fallback=""){ return (value ?? fallback).toString(); }
 function focusScanInput(){ const el = $("scan"); if(!el) return; requestAnimationFrame(() => { el.focus(); el.select?.(); }); }
+function focusFlowScanInput(){ const el = $("flowScanInput"); if(!el) return; requestAnimationFrame(() => { el.focus(); el.select?.(); }); }
 function setScanStatus(message){ const el = $("scanStatus"); if(el) el.textContent = message; }
+function addFlowHistory(entry){
+  flowHistory = [{ ...entry, at: nowISO() }, ...flowHistory].slice(0, 20);
+}
+function renderFlowHistory(){
+  const wrap = $("flowHistory");
+  if(!wrap) return;
+  if(!flowHistory.length){ wrap.innerHTML = `<div class="emptyState">No scan activity yet.</div>`; return; }
+  wrap.innerHTML = flowHistory.slice(0,10).map(entry => `<div class="flowHistoryItem"><strong>${escapeHTML(entry.message)}</strong><div class="hint mono">${escapeHTML(entry.barcode || "")}</div><div class="hint">${escapeHTML(entry.title || "(untitled)")} • ${escapeHTML(entry.mode || "")} • ${escapeHTML(new Date(entry.at).toLocaleTimeString())}</div></div>`).join("");
+}
+function setFlowFeedback(tone, title, details = []){
+  const panel = $("flowFeedback");
+  if(!panel) return;
+  panel.className = `flowFeedback ${tone}`;
+  panel.innerHTML = `<div class="flowFeedbackTitle">${escapeHTML(title)}</div>${details.map(line => `<div class="hint">${escapeHTML(line)}</div>`).join("")}`;
+}
+function remainingForOrder(orderId){
+  if(!orderId) return null;
+  const order = data.orders.find(o => o.id === orderId);
+  if(!order) return null;
+  return orderProgress(order).remaining;
+}
+function findItemByScannedBarcode(rawBarcode){
+  const barcode = (rawBarcode || "").trim();
+  if(!barcode) return null;
+  return data.items.find(item => (item.barcode || "").trim() === barcode) || null;
+}
+function processFlowScan(barcode){
+  const mode = $("flowModeSelect")?.value || "receiving";
+  const item = findItemByScannedBarcode(barcode);
+  if(!item){
+    setFlowFeedback("error", "Item not found", [`Barcode: ${barcode}`, "No matching processing item."]);
+    addFlowHistory({ mode, barcode, message:"Item not found" });
+    renderFlowHistory();
+    return;
+  }
+  const before = structuredCloneSafe(item);
+  const stageBefore = getWorkflowStage(item);
+  let changed = false;
+  let message = "";
+  let tone = "success";
+  if(mode === "receiving"){
+    if(isDone(item)){ message = "Already complete"; tone = "warn"; }
+    else if(item.received === "YES"){ message = "Already received"; tone = "warn"; }
+    else { applyQuickActionToItem(item, "received"); changed = true; message = "Marked received"; }
+  }else if(mode === "cataloging"){
+    if(isDone(item)){ message = "Already complete"; tone = "warn"; }
+    else if(item.cataloged === "YES"){ message = "Already cataloged"; tone = "warn"; }
+    else { applyQuickActionToItem(item, "cataloged"); changed = true; message = "Marked cataloged"; }
+  }else{
+    if(isDone(item)){ message = "Already complete"; tone = "warn"; }
+    else { applyQuickActionToItem(item, "done"); changed = true; message = "Marked complete"; }
+  }
+  if(changed){
+    lastFlowUndo = { itemId:item.id, before };
+    $("flowUndoBtn").disabled = false;
+    persist();
+  }
+  const remaining = remainingForOrder(item.orderId);
+  const nextStep = getNextStep(item);
+  setFlowFeedback(tone, message, [
+    `Title: ${item.title || "(untitled)"}`,
+    `Barcode: ${item.barcode || ""}`,
+    `Order: ${item.orderNumber || "—"}${remaining === null ? "" : ` • Remaining: ${remaining}`}`,
+    `Stage: ${stageBefore} → ${getWorkflowStage(item)}`,
+    `Next: ${nextStep}`
+  ]);
+  addFlowHistory({ mode, barcode:item.barcode, title:item.title, message });
+  renderFlowHistory();
+  rememberRecentScan(item.id);
+}
+function undoLastFlowScan(){
+  if(!lastFlowUndo) return;
+  const idx = data.items.findIndex(it => it.id === lastFlowUndo.itemId);
+  if(idx < 0) return;
+  data.items[idx] = migrateItem(lastFlowUndo.before);
+  const restored = data.items[idx];
+  persist();
+  setFlowFeedback("warn", "Undo applied", [`Restored: ${restored.title || restored.barcode || "item"}`, `Stage: ${getWorkflowStage(restored)}`]);
+  addFlowHistory({ mode:"undo", barcode:restored.barcode, title:restored.title, message:"Undo restored previous state" });
+  renderFlowHistory();
+  lastFlowUndo = null;
+  $("flowUndoBtn").disabled = true;
+  focusFlowScanInput();
+}
 function updateSlipPreviewVisibility(){
   const app = $("appShell");
   const panel = $("slipPreviewPanel");
@@ -1526,11 +1651,9 @@ function populateReceipt(it){
   $("rSpecialTop").classList.toggle("hidden", !isSpecial(item) && !exception);
   $("rTitleBlock").textContent = titleLine; $("rTitleBlock").classList.toggle("hidden", !titleLine);
   $("rWorkType").textContent = isGeneralFix(item) ? "GENERAL FIX" : "NEW PROCESSING";
-  $("rReceived").textContent = item.received; $("rCataloged").textContent = isGeneralFix(item) ? (item.fixDone ? "YES" : "NO") : item.cataloged; $("rSpine").textContent = isGeneralFix(item) ? "N/A" : item.spine;
-  $("rCovered").textContent = isGeneralFix(item) ? (item.fixDetails || "N/A") : item.covered; $("rMinimalCover").textContent = !isGeneralFix(item) && item.minimalCover ? "✓" : "";
   $("rPaidPrice").textContent = formatMoney(item.paidPrice); $("rRetailPrice").textContent = formatMoney(item.retailPrice); $("rExceptionType").textContent = exception; $("rExceptionRow").classList.toggle("hidden", !exception);
   const hold = (item.holdName || "").trim(); $("rHoldName").textContent = hold; $("rHoldRow").classList.toggle("hidden", !hold);
-  const adopted = formatMoney(item.adoptedAmt); $("rAdoptedAmt").textContent = adopted; $("rAdoptedRow").classList.toggle("hidden", !adopted); $("rBookplate").textContent = item.bookplate || "NO"; $("rBookplateRow").classList.toggle("hidden", !adopted);
+  const adopted = formatMoney(item.adoptedAmt); $("rAdoptedAmt").textContent = adopted; $("rAdoptedRow").classList.toggle("hidden", !adopted);
   const donation = (item.donated || "").trim(); $("rDonatedName").textContent = donation; $("rDonatedRow").classList.toggle("hidden", !donation);
   const memorial = (item.memorial || "").trim(); $("rMemorial").textContent = memorial; $("rMemorialRow").classList.toggle("hidden", !memorial);
   const linkedOrder = data.orders.find(order => order.id === item.orderId) || null;
@@ -1728,10 +1851,26 @@ function setActiveTab(tab){
   document.querySelectorAll(".tabPanel").forEach(panel => panel.classList.toggle("active", panel.id === `tab-${tab}`));
   updateSlipPreviewVisibility();
   $("bookplatePreviewPanel").classList.toggle("hidden", tab !== "bookplates");
+  if(tab === "scanmode") focusFlowScanInput();
+  if(tab === "processing") focusScanInput();
 }
-function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderLoadedOrderSummary(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); updateSlipPreviewVisibility(); }
+function refreshAll(){ renderFilterOptions(); renderTable(); renderQueue(); renderOrders(); renderOrderItems(); renderLoadedOrderSummary(); renderReceivingSession(); renderSummaryCards("dashboardCards"); renderReporting("dashboardReportingPanel"); renderDashboardPanels(); syncReceipt(); renderCurrentItemCard(); renderEditorQuickActions(); renderRecentScans(); renderFlowHistory(); renderBookplateBorders(); renderBookplateSheet(); renderSettings(); updateSelectedCount(); toggleFiltersPanel(filtersExpanded); updateSlipPreviewVisibility(); }
 
 $("scan").addEventListener("keydown", (e) => { if(e.key !== "Enter") return; e.preventDefault(); const bc = $("scan").value.trim(); if(!bc) return; let it = data.items.find(x => (x.barcode || "").trim() === bc) || null; if(!it){ it = emptyItem({ barcode:bc }); logActivity(it, "Created", "Created from scan box"); data.items.push(it); setScanStatus(`Created new item ${bc}.`); persist(); } else setScanStatus(`Loaded existing item ${bc}.`); rememberRecentScan(it.id); loadIntoEditor(it); $("scan").value = ""; setActiveTab("processing"); focusScanInput(); });
+$("flowScanInput").addEventListener("keydown", (e) => {
+  if(e.key !== "Enter") return;
+  e.preventDefault();
+  const barcode = $("flowScanInput").value.trim();
+  if(!barcode) return;
+  processFlowScan(barcode);
+  $("flowScanInput").value = "";
+  focusFlowScanInput();
+});
+$("flowModeSelect").addEventListener("change", () => {
+  const modeLabel = $("flowModeSelect").selectedOptions?.[0]?.textContent || "Receiving";
+  setFlowFeedback("", "Ready to scan", [`Mode: ${modeLabel}. Scanner focus stays here.`]);
+  focusFlowScanInput();
+});
 ["barcode","title","author","materialType","workType","received","cataloged","spine","covered","minimalCover","paidPrice","retailPrice","holdName","adoptedAmt","bookplate","donated","memorial","itemNotes","manualDone","fixDetails","fixDone","completionState","exceptionType","exceptionNotes","assignedTo","currentLocation","handoffNotes"].forEach(id => { $(id).addEventListener("input", syncReceipt); $(id).addEventListener("change", syncReceipt); });
 ["search","filterStage","filterSpecialHandling","filterAssignment","filterExceptions","filterAging","filterDoneState","processingView","sessionModeEnabled"].forEach(id => { $(id).addEventListener("input", refreshAll); $(id).addEventListener("change", refreshAll); });
 $("workType").addEventListener("change", toggleWorkTypeFields);
